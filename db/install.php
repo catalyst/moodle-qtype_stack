@@ -60,6 +60,7 @@ function xmldb_qtype_stack_install() {
         set_config('maximaversion', 'default', 'qtype_stack');
         set_config('castimeout', 10, 'qtype_stack');
         set_config('casresultscache', 'db', 'qtype_stack');
+        set_config('caspreparse', 'true', 'qtype_stack');
         set_config('maximacommand', '', 'qtype_stack');
         set_config('maximacommandopt', '', 'qtype_stack');
         set_config('maximacommandserver', '', 'qtype_stack');
@@ -76,7 +77,7 @@ function xmldb_qtype_stack_install() {
         set_config('casdebugging', 1, 'qtype_stack');
         set_config('mathsdisplay', 'mathjax', 'qtype_stack');
 
-        if (!defined('QTYPE_STACK_TEST_CONFIG_PLATFORM') || QTYPE_STACK_TEST_CONFIG_PLATFORM !== 'server') {
+        if (!defined('QTYPE_STACK_TEST_CONFIG_PLATFORM') || !in_array(QTYPE_STACK_TEST_CONFIG_PLATFORM, ['server', 'none'])) {
             list($ok, $message) = stack_cas_configuration::create_auto_maxima_image();
             if (!$ok) {
                 throw new coding_exception('maxima_opt_auto creation failed.', $message);

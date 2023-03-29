@@ -51,6 +51,19 @@ function stack_string($key, $a = null) {
 }
 
 /**
+ * Equivalent to get_string($key, 'qtype_stack', $a), but this method ensure that
+ * any equations in the string are displayed properly and that this message is formatted as an error.
+ * @param string $key the string name.
+ * @param mixed $a (optional) any values to interpolate into the string.
+ * @return string the language string
+ */
+function stack_string_error($key, $a = null) {
+    $key = stack_maths::process_lang_string(get_string($key, 'qtype_stack', $a));
+    return '<i class="icon fa fa-exclamation-circle text-danger fa-fw " title="' . $key . '" aria-label="' .
+            $key . '"></i>' . $key;
+}
+
+/**
  * Private helper used by the next function.
  *
  * @return array search => replace strings.
@@ -176,6 +189,16 @@ function stack_string_sanitise($str) {
     $str = str_ireplace('</iframe>', '&lt;&#8203;/iframe&gt;', $str);
     $str = str_ireplace('<style', '&lt;&#8203;style', $str);
     $str = str_ireplace('</style>', '&lt;&#8203;/style&gt;', $str);
+    $str = str_ireplace('<div', '&lt;&#8203;div', $str);
+    $str = str_ireplace('</div>', '&lt;&#8203;/div&gt;', $str);
+    $str = str_ireplace('/>', '/&gt;', $str);
+    $str = str_ireplace('</', '&lt;/', $str);
+    $str = str_ireplace('<!--', '&lt;!--', $str);
+    $str = str_ireplace('-->', '--&gt;', $str);
+
+    $pat = array('/(on)([a-z]+[ ]*)(=)/', '/(href)([ ]*)(=)/', '/(src)([ ]*)(=)/');
+    $rep = array('on&#0;$2&#0;&#61;', 'href&#0;$2&#61;', 'src&#0;$2&#61;');
+    $str = preg_replace($pat, $rep, $str);
     return $str;
 }
 
@@ -214,4 +237,26 @@ function qtype_stack_setup_question_test_page($question) {
     }
 
     return array($context, $seed, $urlparams);
+}
+
+/* This class is needed to ignore requests for pluginfile rewrites in the bulk tester
+ * and possibly elsewhere, e.g. API.
+ */
+class stack_outofcontext_process {
+
+    public function __construct() {
+    }
+
+    /**
+     * Calls {@link question_rewrite_question_urls()} with appropriate parameters
+     * for content belonging to this question.
+     * @param string $text the content to output.
+     * @param string $component the component name (normally 'question' or 'qtype_...')
+     * @param string $filearea the name of the file area.
+     * @param int $itemid the item id.
+     * @return string the content with the URLs rewritten.
+     */
+    public function rewrite_pluginfile_urls($text, $component, $filearea, $itemid) {
+        return $text;
+    }
 }

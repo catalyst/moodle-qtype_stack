@@ -14,6 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Stack.  If not, see <http://www.gnu.org/licenses/>.
 
+namespace qtype_stack;
+
+use qtype_stack_testcase;
+use stack_exception;
+use stack_utils;
+
 defined('MOODLE_INTERNAL') || die();
 
 require_once(__DIR__ . '/fixtures/test_base.php');
@@ -28,14 +34,9 @@ require_once(__DIR__ . '/../stack/cas/cassession2.class.php');
 
 /**
  * @group qtype_stack
+ * @covers \stack_utils
  */
 class stack_utils_test extends qtype_stack_testcase {
-
-    public function test_matching_pairs() {
-        $this->assertTrue(stack_utils::check_matching_pairs('Hello $world$!', '$'));
-        $this->assertFalse(stack_utils::check_matching_pairs('Hello @world!', '@'));
-        $this->assertTrue(stack_utils::check_matching_pairs('', '$'));
-    }
 
     public function test_check_bookends() {
         $this->assertSame('left', stack_utils::check_bookends('x+1)^2', '(', ')'));
@@ -207,5 +208,42 @@ class stack_utils_test extends qtype_stack_testcase {
         $this->assertEquals('stringa:"" and stringb:""', stack_utils::eliminate_strings("stringa:\"test\" and stringb:\"testb\""));
         $this->assertEquals('stringa:"" and stringb:""', stack_utils::eliminate_strings("stringa:\"\" and stringb:\"\\\"\""));
         $this->assertEquals('ssubst("","",x)', stack_utils::eliminate_strings('ssubst("times",",",x)'));
+    }
+
+    /**
+     * Test cases for test_count_missing_alttext.
+     *
+     * @return array of test cases.
+     */
+    public function count_missing_alttext_cases(): array {
+        return [
+            [0, 'random <img alt="Hello world!" src="https://nowhere.com/images/image0.png" > stuff'],
+            [0, 'random <IMG alt="Hello world!" src="https://nowhere.com/images/image0.png" > stuff'],
+            [0, 'random <img ALT = "Hello world!" src="https://nowhere.com/images/image0.png" > stuff'],
+            [0, 'random <img src="https://nowhere.com/images/image0.png" alt="Hello world!" /> stuff'],
+            [1, 'random <img src = "https://nowhere.com/images/image0.png"> stuff'],
+            [1, 'random <IMG src = "https://nowhere.com/images/image0.png"> stuff'],
+            // Re the next line, generally alt="" is the right way to indicate that an image
+            // is purely decorative, and screen readers should ignore it. However, I will
+            // not change the intent of this code while just fixing a bug.
+            [1, 'random <img alt = \'\' src="https://nowhere.com/images/image0.png" > stuff'],
+            [1, 'random <img alt = \'  \' src="https://nowhere.com/images/image0.png" > stuff'],
+            [2, 'random <img src="https://nowhere.com/images/image0.png" > stuff <img src="https://nowhere.com/image1.png" >'],
+            [0, "<img src='!ploturl!stackplot-38527-796.svg' alt='Line gradient -1/3 though the points (5,-5)' width='450' />"],
+            [0, 'test <img alt="It\'s mine!" src="https://nowhere.com/images/image0.png" > stuff'],
+            [0, 'test <img alt=\'Say "hello".\' src="https://nowhere.com/images/image0.png" > stuff'],
+            [0, 'test <imgination>stuff</imgination>'],
+        ];
+    }
+
+    /**
+     * Test count_missing_alttext.
+     *
+     * @param int $expectedcount Number of images without alt text we expect to find in the HTML.
+     * @param string $html Some HTML to analyse.
+     * @dataProvider count_missing_alttext_cases
+     */
+    public function test_count_missing_alttext(int $expectedcount, string $html): void {
+        $this->assertEquals($expectedcount, stack_utils::count_missing_alttext($html));
     }
 }

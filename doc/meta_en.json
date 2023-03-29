@@ -52,6 +52,11 @@
         "description":"Documentation for question authors using STACK, including a quick start guide and how to use common STACK features."
         },
         {
+        "file":"Answer_tests_results.md",
+        "title":"Answer test results",
+        "description":"This page, automatically generated from the STACK unit tests, helps teachers understand what the answer tests actually consiser to be the same and different."
+        },
+        {
         "file":"Actuarial.md",
         "title":"Actuarial Notation - STACK Documentation",
         "description":"An overview of using actuarial notation in STACK."
@@ -132,6 +137,11 @@
         "description":"Information about the different answer tests supported in the STACK online assessment system."
         },
         {
+        "file":"Answer_tests_rules_based.md",
+        "title":"Rules-based answer tests",
+        "description":"Information about creating bespoke answer tests by specifying algebraic rules."
+        },
+        {
         "file":"Deploying.md",
         "title":"Deploying - STACK Documentation",
         "description":"Information about deploying random variants in the STACK online assessment system."
@@ -145,6 +155,16 @@
         "file":"Fixing_broken_questions.md",
         "title":"I have a misbehaving STACK question in a live Moodle quiz.  What should I do?",
         "description":"Advice on dealing with errors in STACK questions during a live quiz."
+        },
+        {
+        "file":"Error_trapping.md",
+        "title":"Runtime errors and error trapping in STACK questions",
+        "description":"How STACK deals with runtime errors and how to trap errors and create guard clauses."
+        },
+        {
+        "file":"Errors.md",
+        "title":"Errors when question authoring",
+        "description":"What errors that may appear during validation/saving of a question mean and what you can do about it."
         },
         {
         "file":"Equivalence_reasoning.md",
@@ -172,6 +192,11 @@
         "description":"Information on importing and exporting questions in STACK."
         },
         {
+        "file":"Inclusions.md",
+        "title":"Including external content in questions",
+        "description":"Advice on including external content in questions."
+        },
+        {
         "file":"Inputs.md",
         "title":"Inputs - STACK Documentation",
         "description":"STACK supports many different types of student input, including algebraic input, numerical input and multi-line input."
@@ -180,6 +205,11 @@
         "file":"JSXGraph.md",
         "title":"JSXGraph - STACK Documentation",
         "description":"JSXGraph is a useful tool for creating graphs in your STACK questions."
+        },
+        {
+        "file":"Levenshtein_distance.md",
+        "title":"Levenshtein distance and strings",
+        "description":"Levenshtein distance is a metric on strings which can be used to assess short (typically single word) text strings."
         },
         {
         "file":"Proof.md",
@@ -202,9 +232,9 @@
         "description":"Information on creating and manipulating multiple choice questions in STACk."
         },
         {
-        "file":"Question_bank.md",
-        "title":"Moodle Question Bank - STACK Documentation",
-        "description":"Information on finding the Moodle question bank."
+        "file":"Notes_about_performance.md",
+        "title":"Notes about question performance",
+        "description":"Notes about question performance, and how to write questions which are efficient."
         },
         {
         "file":"Options.md",
@@ -215,6 +245,11 @@
         "file":"Potential_response_trees.md",
         "title":"Potential Response Trees - STACK Documentation",
         "description":"Information on using potential response trees in the STACK online assessment system."
+        },
+        {
+        "file":"Question_bank.md",
+        "title":"Moodle Question Bank - STACK Documentation",
+        "description":"Information on finding the Moodle question bank."
         },
         {
         "file":"Question_blocks.md",
@@ -237,6 +272,16 @@
         "description":"You can generate detailed reports for quizzes using STACK to assess how successful they are."
         },
         {
+        "file":"Serving_out_data.md",
+        "title":"Serving out data",
+        "description":"How data sets can be served and downloaded by students, e.g. in statistics questions."
+        },
+        {
+        "file":"Strings.md",
+        "title":"Strings in STACK questions",
+        "description":"How to use strings in STACK questions."
+        },
+        {
         "file":"Tables.md",
         "title":"Tables - STACK Documentation",
         "description":"Functions for typesetting mathematical tables, such a truth tables."
@@ -247,9 +292,19 @@
         "description":"Information on testing a STACK question."
         },
         {
+        "file":"Trees.md",
+        "title":"Trees - STACK Documentation",
+        "description":"Functions for displaying the tree representation of a mathematical expression."
+        },
+        {
         "file":"Units.md",
         "title":"Scientific Units - STACK Documentation",
         "description":"STACK supports the use of scientific units in its questions. This is particularly useful in physics questions."
+        },
+        {
+        "file":"Variant_matching.md",
+        "title":"Variant matching - STACK Documentation",
+        "description":"This is a relatively advanced feature which links together random variables between questions."
         },
         {
         "file":"Numerical_input.md",
@@ -279,6 +334,11 @@
         "file":"CAS.md",
         "title":"About Computer Algebra Systems - STACK Documentation",
         "description":"Information about Computer Algebra Systems for use with online assessment."
+        },
+        {
+        "file":"Complex_numbers.md",
+        "title":"Complex Numbers in STACK - STACK Documentation",
+        "description":"Complex Numbers and how to deal with them in STACK."
         },
         {
         "file":"Differential_equations.md",
@@ -405,6 +465,11 @@
         "description":"Instructions on downloading and compiling Maxima, the CAS used for STACK."
         },
         {
+        "file":"Migration.md",
+        "title":"Migrating from STACK 3.x or 2.x to the current version - STACK Documentation",
+        "description":"Instructions on migrating from STACK 3.x or 2.x to the current version."
+        },
+        {
         "file":"Testing_installation.md",
         "title":"Testing Installation - STACK Documentation",
         "description":"It is important to confirm that STACK has been installed correctly. This page provides instructions for confirming this."
@@ -494,6 +559,16 @@
         "description":"Notes documenting the process for releasing a new version of STACK."
         },
         {
+        "file":"Release_notes_4_4_x.md",
+        "title":"Release notes for STACK version 4.4.0 onwards",
+        "description":"Common problems with migrating questions to STACK 4.4.0 and later."
+        },
+        {
+        "file":"Releasing_ILIAS.md",
+        "title":"Releasing STACK for ILIAS - STACK Documentation",
+        "description":"Notes documenting the process for releasing a new version of STACK for ILIAS."
+        },
+        {
         "file":"Running_question_tests_other_site.md",
         "title":"Running Question Tests for Questions on Other Sites - STACK Documentation",
         "description":"Before upgrading to a new version of STACK, you may want to check if the new version will change any of your existing questions."
@@ -512,6 +587,11 @@
         "file":"Unit_tests.md",
         "title":"Unit Tests - STACK Documentation",
         "description":"Information on the three types of unit tests supported by STACK; PHP Unit tests, Maxima unit tests and tests scripts exposed to the question author."
+        },
+        {
+        "file":"Updating_JSXGraph.md",
+        "title":"Updating JSXGraph - STACK Documentation",
+        "description":"How to obtain, edit and minify the JSXGraph javascript."
         },
         {
         "file":"UpgradeDefaults.md",

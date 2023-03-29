@@ -14,6 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Stack.  If not, see <http://www.gnu.org/licenses/>.
 
+namespace qtype_stack;
+
+use qtype_stack_testcase;
+use stack_inputvalidation_test_data;
+
 defined('MOODLE_INTERNAL') || die();
 
 require_once(__DIR__ . '/../locallib.php');
@@ -22,16 +27,17 @@ require_once(__DIR__ . '/../stack/options.class.php');
 require_once(__DIR__ . '/fixtures/test_base.php');
 require_once(__DIR__ . '/fixtures/inputfixtures.class.php');
 
-// Add in all the tests from studentinput.php into the unit testing framework.
-// These are exposed to users as documentation and the Travis integration should also run all the tests.
+// Add in all the tests from studentinputs.php into the unit testing framework.
+// These are exposed to users as documentation and google-ci should also run all the tests.
 //
 // @copyright 2016 The University of Edinburgh.
 // @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later.
 
 /**
  * @group qtype_stack
+ * @covers \stack_input
  */
-class stack_studentinput_testcase extends qtype_stack_testcase {
+class studentinput_test extends qtype_stack_testcase {
 
     /**
      * @dataProvider stack_inputvalidation_test_data::get_raw_test_data

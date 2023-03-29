@@ -14,12 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Stack.  If not, see <http://www.gnu.org/licenses/>.
 
-/**
- * Unit tests for the stack_algebra_input class.
- *
- * @copyright  2015 The University of Edinburgh
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
+namespace qtype_stack;
+
+use qtype_stack_testcase;
+use stack_cas_security;
+use stack_input;
+use stack_input_factory;
+use stack_input_state;
+use stack_options;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -32,8 +34,9 @@ require_once(__DIR__ . '/../stack/input/factory.class.php');
  * @copyright  2015 The University of Edinburgh
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @group qtype_stack
+ * @covers \stack_equiv_input
  */
-class stack_equiv_input_test extends qtype_stack_testcase {
+class input_equiv_test extends qtype_stack_testcase {
 
     public function test_internal_validate_parameter() {
         $el = stack_input_factory::make('equiv', 'input', 'x^2');
@@ -49,7 +52,7 @@ class stack_equiv_input_test extends qtype_stack_testcase {
 
     public function test_render_blank() {
         $el = stack_input_factory::make('equiv', 'ans1', '[]');
-        $this->assertEquals('<textarea name="stack1__ans1" id="stack1__ans1" rows="3" cols="25" ' .
+        $this->assertEquals('<textarea class="equivinput" name="stack1__ans1" id="stack1__ans1" rows="3" cols="25" ' .
                 'autocapitalize="none" spellcheck="false"></textarea>',
                 $el->render(new stack_input_state(stack_input::VALID, array(), '', '', '', '', ''),
                         'stack1__ans1', false, null));
@@ -59,7 +62,7 @@ class stack_equiv_input_test extends qtype_stack_testcase {
         $el = stack_input_factory::make('equiv', 'ans1', '[]');
         $el->set_parameter('syntaxHint',
             '[r1=0,r2=0,r3=0,r4=0,r5=0,r6=0,t*h*i*s+i*s+a+v*e*r*y+l*o*n*g+e*x*p*r*e*s*s*i*o*n=g*o*o*d+t*e*s*t!]');
-        $this->assertEquals("<textarea name=\"stack1__ans1\" id=\"stack1__ans1\" " .
+        $this->assertEquals("<textarea class=\"equivinput\" name=\"stack1__ans1\" id=\"stack1__ans1\" " .
             "rows=\"8\" cols=\"50\" autocapitalize=\"none\" spellcheck=\"false\">" .
             "r1 = 0\nr2 = 0\nr3 = 0\nr4 = 0\nr5 = 0\nr6 = 0\n" .
             "t*h*i*s+i*s+a+v*e*r*y+l*o*n*g+e*x*p*r*e*s*s*i*o*n = g*o*o*d+t*e*s*t!" .
@@ -71,7 +74,7 @@ class stack_equiv_input_test extends qtype_stack_testcase {
     public function test_render_firstline() {
         $el = stack_input_factory::make('equiv', 'ans1', '[]');
         $el->set_parameter('syntaxHint', 'firstline');
-        $this->assertEquals('<textarea name="stack1__ans1" id="stack1__ans1" rows="3" cols="25" ' .
+        $this->assertEquals('<textarea class="equivinput" name="stack1__ans1" id="stack1__ans1" rows="3" cols="25" ' .
                 'autocapitalize="none" spellcheck="false">x^2 = 4</textarea>',
                 $el->render(new stack_input_state(stack_input::VALID, array(), '', '', '', '', ''),
                         'stack1__ans1', false, '[x^2=4,x=2 or x=-2]'));
@@ -81,7 +84,7 @@ class stack_equiv_input_test extends qtype_stack_testcase {
         $el = stack_input_factory::make('equiv', 'ans1', '[]');
         // Note the syntax hint must be a list.
         $el->set_parameter('syntaxHint', '[x^2=3]');
-        $this->assertEquals('<textarea name="stack1__ans1" id="stack1__ans1" rows="3" cols="25" ' .
+        $this->assertEquals('<textarea class="equivinput" name="stack1__ans1" id="stack1__ans1" rows="3" cols="25" ' .
                 'autocapitalize="none" spellcheck="false">x^2 = 3</textarea>',
                 $el->render(new stack_input_state(stack_input::VALID, array(), '', '', '', '', ''),
                         'stack1__ans1', false, '[x^2=4,x=2 or x=-2]'));
@@ -206,7 +209,7 @@ class stack_equiv_input_test extends qtype_stack_testcase {
         $this->assertEquals('\[ \begin{array}{lll} &x^2-5\cdot x+6=0& \cr'.
             ' \color{green}{\Leftrightarrow}&x=2\,{\mbox{ or }}\, x=3& \cr \end{array} \]', $state->contentsdisplayed);
         $this->assertEquals('', $state->note);
-        $this->assertEquals('<textarea name="q140:1_ans1" id="q140:1_ans1" rows="3" cols="25" ' .
+        $this->assertEquals('<textarea class="equivinput" name="q140:1_ans1" id="q140:1_ans1" rows="3" cols="25" ' .
                 'autocapitalize="none" spellcheck="false">x^2-5*x+6=0' . "\n" . 'x=2 or x=3</textarea>',
                 $el->render($state, 'q140:1_ans1', false, null));
         $this->assertEquals('<span class="filter_mathjaxloader_equation">' .
@@ -302,6 +305,22 @@ class stack_equiv_input_test extends qtype_stack_testcase {
         $this->assertEquals('\[ \begin{array}{lll} &x^2=4& \cr \color{green}{\Leftrightarrow}&x=2\,{\mbox{ or }}\, x=-2& \cr'.
                 ' \end{array} \]', $state->contentsdisplayed);
         $this->assertEquals('', $state->note);
+    }
+
+    public function test_validate_student_response_with_firstline_neg() {
+        // This test case has some minus signs which were causing problems on older systems.
+        $options = new stack_options();
+        $el = stack_input_factory::make('equiv', 'sans1', '[2*x-2+4 = -6,2*x+2 = -6,2*x = -8,x = -4]');
+        $el->set_parameter('options', 'firstline');
+        $el->set_parameter('insertStars', 1);
+        $state = $el->validate_student_response(array('sans1' => "2x-2+4=-6"), $options,
+                '[2*x-2+4 = -6,2*x+2 = -6,2*x = -8,x = -4]',
+                new stack_cas_security());
+        $this->assertEquals(stack_input::VALID, $state->status);
+        $this->assertEquals('[2*x-2+4 = -6]', $state->contentsmodified);
+        $this->assertEquals('\[ \begin{array}{lll} &2\cdot x-2+4=-6& \cr \end{array} \]',
+                $state->contentsdisplayed);
+        $this->assertEquals('missing_stars', $state->note);
     }
 
     public function test_validate_student_response_with_firstline_false() {
@@ -476,7 +495,7 @@ class stack_equiv_input_test extends qtype_stack_testcase {
     public function test_validate_student_response_with_natural_domain_rational() {
         $options = new stack_options();
         $options->set_option('multiplicationsign', 'none');
-        $ta = '[5*x/(2*x+1)-3/(x+1) = 1,5*x*(x+1)-3*(2*x+1)=(x+1)*(2*x+1),(x-2)*(3*x+2)=0,x=2 nounor x=-2/3];';
+        $ta = '[5*x/(2*x+1)-3/(x+1) = 1,5*x*(x+1)-3*(2*x+1)=(x+1)*(2*x+1),(x-2)*(3*x+2)=0,x=2 nounor x=-2/3]';
         $sa = "5*x/(2*x+1)-3/(x+1) = 1\n5*x*(x+1)-3*(2*x+1)=(x+1)*(2*x+1)\n(x-2)*(3*x+2)=0\nx=2 or x=-2/3";
         $el = stack_input_factory::make('equiv', 'sans1', $ta);
         $state = $el->validate_student_response(array('sans1' => $sa), $options, $ta, new stack_cas_security());

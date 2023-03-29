@@ -14,6 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Stack.  If not, see <http://www.gnu.org/licenses/>.
 
+namespace qtype_stack;
+
+use qtype_stack_testcase;
+use stack_cas_security;
+use stack_input;
+use stack_input_factory;
+use stack_input_state;
+use stack_options;
+
 defined('MOODLE_INTERNAL') || die();
 
 require_once(__DIR__ . '/fixtures/test_base.php');
@@ -26,8 +35,9 @@ require_once(__DIR__ . '/../stack/input/factory.class.php');
 
 /**
  * @group qtype_stack
+ * @covers \stack_varmatrix_input
  */
-class stack_varmatrix_input_test extends qtype_stack_testcase {
+class input_varmatrix_test extends qtype_stack_testcase {
 
     public function test_render_blank() {
         $el = stack_input_factory::make('varmatrix', 'ans1', 'M');

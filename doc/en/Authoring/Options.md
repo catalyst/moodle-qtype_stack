@@ -41,6 +41,7 @@ The following options affect how mathematics is displayed.
 * (none), e.g. \(x(x+1)\)
 * Dot, e.g. \(x\cdot(x+1)\)
 * Cross, e.g. \(x\times (x+1)\)
+* Numbers only, e.g. \(3\times 5\, x\).
 
 In practice it is very helpful to have some kind of multiplication sign displayed to the student.  The difference between
 \[ xe^x \mbox{ and } x\,e^x\]
@@ -53,6 +54,14 @@ Internally the display of multiplication signs is controlled by the STACK functi
     Cross remains: {@a*b@}.
 
 The expression `(make_multsgn("cross"), a*b)` uses parentheses as an abbreviation for Maxima's `block` command.  So, the first expression `make_multsgn("cross")` is evaluated which changes the display option to a cross.  Then the second expression is evaluated and displayed as \(a\times b\).  The new option persists in the next expression.
+
+The value of this option `onum` will only put a multiplication sign between numbers.  This means you will see \(3\times 5\, x\) and not \(3\, 5\, x\) as you would if you have "none".
+
+There is a special atom which controls the multiplication symbol.  If you would like a dot then define
+
+    texput(multsgnonlyfornumberssym, "\\times");
+
+in the question variables.
 
 ### Logic symbols ### {#logicsymbol}
 
@@ -74,9 +83,17 @@ In  Maxima 5.19.1 we get:
     (%i2) 6*sqrt(2);
     (%o2) 3*2^(3/2)
 
-The discussion of this issue can be followed on the
-[Maxima mailing list](http://www.math.utexas.edu/pipermail/maxima/2009/018460.html).
-Do you really want to continue using \(\sqrt{}\) in your teaching?
+Do you really want to continue using \(\sqrt{}\) in your teaching?  In his *Elements of Algebra*, L. Euler wrote the following.
+
+> \(\S 200\) We may therefore entirely reject the radical signs at present made use of, and employ in their stead
+> the fractional exponents which we have just explained: but as we have been long accustomed to
+> those signs, and meet with them in most books of Algebra, it might be wrong to banish them entirely from 
+> calculations; there is, however, sufficient reason also to employ, as is now frequently done, the other method of 
+> notation, because it manifestly corresponds with the nature of the thing. In fact we see immediately
+> that \(a^\frac12\) is the square root of \(a\), because we know that the square of \(a^\frac12\), that is to say 
+> \(a^\frac12\) multiplied by \(a^\frac12\) is equal to \(a^1\), or \(a\).
+
+A lot of elementary mathematics involves converting from one form to another and back again.  Sometimes these forms have important differences of use, e.g. factored form or completed square form for a quadratic.  However, sometimes these equivalent forms are more customary than because it *"manifestly corresponds with the nature of the thing"* in question.  I digress...
 
 ### sqrt(-1) {#sqrt_minus_one}
 

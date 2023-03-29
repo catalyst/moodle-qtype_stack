@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Stack.  If not, see <http://www.gnu.org/licenses/>.
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Class which undertakes process control to connect to Maxima.
  *
@@ -167,7 +165,8 @@ class stack_cas_connection_db_cache implements stack_cas_connection {
         $db->delete_records('qtype_stack_cas_cache');
 
         // Also take this opportunity to empty the plots folder on disc.
-        $plots = glob(stack_cas_configuration::images_location() . '/*.{png,svg}', GLOB_BRACE);
+        $glob = \defined('GLOB_BRACE') ? \GLOB_BRACE : 0;
+        $plots = glob(stack_cas_configuration::images_location() . '/*.{png,svg}', $glob);
         $a = ['total' => count($plots), 'done' => 0];
         $progressevery = (int) min(max(1, $a['total'] / 500), 100);
         if ($a['total'] > 0) {

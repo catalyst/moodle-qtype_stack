@@ -14,14 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Stack.  If not, see <http://www.gnu.org/licenses/>.
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
- * This script runs the answers tests and verifies the results.
- *
- * This serves two purposes. First, it verifies that the answer tests are working
- * correctly, and second it serves to document the expected behaviour of answer
- * tests, which is useful for learning how they work.
+ * This script checks display of subscript elements.
  *
  * @copyright  2012 University of Birmingham
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -46,15 +40,19 @@ class stack_subscripts_test_data {
         array('Delta*v_x0', 'Delta*v_x0', '!', '\Delta\,{v}_{x_{0}}', '!'),
         array('Delta*v_xi', 'Delta*v_xi', '!', '\Delta\,{v}_{\xi}', '!', 'xi is a Greek letter...'),
         array('v_0', 'v_0', '!', '{v}_{0}', '!'),
+        array('M_1', 'M_1', '!', '{M}_{1}', '!'),
+        array('Mz_23', 'Mz_23', '!', '{{\it Mz}}_{23}', '!'),
         array('v_y0', 'v_y0', '!', '{v}_{y_{0}}', '!'),
         array('v_x0^2', 'v_x0^2', '!', '{{v}_{x_{0}}}^2', '!'),
         array('v_1^2', 'v_1^2', '!', '{{v}_{1}}^2', '!'),
         array('v_s', 'v_s', '!', '{v}_{s}', '!'),
         array('m_a', 'm_a', '!', '{m}_{a}', '!'),
         array('a_x', 'a_x', '!', '{a}_{x}', '!'),
-        array('texsub(a,1*x)', 'texsub(a,1*x)', 'texsub(a,x)', '{a}_{1\,x}', '{a}_{x}'),
         array('a_cm', 'a_cm', '!', '{a}_{{\it cm}}', '!', 'Do we mind about Roman typeface here for units?'),
+        array('texsub(a,1*x)', 'texsub(a,1*x)', 'texsub(a,x)', '{a}_{1\,x}', '{a}_{x}'),
         array('texsub(F,1*x)', 'texsub(F,1*x)', 'texsub(F,x)', '{F}_{1\,x}', '{F}_{x}'),
+        array('texsub(F,sequence(1,2))', 'texsub(F,sequence(1,2))', 'texsub(F,sequence(1,2))',
+            '{F}_{1, 2}', '{F}_{1, 2}'),
         array('F_1-2', 'F_1-2', '!', '{F}_{1}-2', '!',
                 'How do we bind into a single subscript?  We need a display function'),
         array('texsub(F,1-2)', 'texsub(F,1-2)', 'texsub(F,-1)', '{F}_{1-2}', '{F}_{-1}',

@@ -14,6 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Stack.  If not, see <http://www.gnu.org/licenses/>.
 
+namespace qtype_stack;
+
+use qtype_stack_testcase;
+
 defined('MOODLE_INTERNAL') || die();
 
 // Unit tests for the documentation library functions.
@@ -26,8 +30,9 @@ require_once(__DIR__ . '/fixtures/test_base.php');
 
 /**
  * @group qtype_stack
+ * @covers \qtype_stack
  */
-class stack_docslib_test extends qtype_stack_testcase {
+class docslib_test extends qtype_stack_testcase {
 
     public function test_stack_docs_title_from_filename() {
         $this->assertEquals('About', stack_docs_title_from_filename('About'));
@@ -45,6 +50,7 @@ class stack_docslib_test extends qtype_stack_testcase {
                 '<li><a href="WWWROOT/question/type/stack/doc.php/Installation/Mathjax.md">' .
                         'Mathjax</a></li>' .
                 '<li><a href="WWWROOT/question/type/stack/doc.php/Installation/Maxima.md">Maxima</a></li>' .
+                '<li><a href="WWWROOT/question/type/stack/doc.php/Installation/Migration.md">Migration</a></li>' .
                 '<li><a href="WWWROOT/question/type/stack/doc.php/Installation/Testing_installation.md">' .
                         'Testing installation</a></li></ul>'),
                 stack_docs_index($CFG->dirroot . '/question/type/stack/doc/en/Installation',

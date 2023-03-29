@@ -14,6 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Stack.  If not, see <http://www.gnu.org/licenses/>.
 
+namespace qtype_stack;
+
+use qtype_stack_testcase;
+use stack_ast_container;
+use stack_ast_container_silent;
+use stack_cas_keyval;
+use stack_cas_security;
+use stack_cas_session2;
+use stack_numbers_test_data;
+use stack_options;
+use function stack_utils\get_config;
+
 defined('MOODLE_INTERNAL') || die();
 
 require_once(__DIR__ . '/../locallib.php');
@@ -25,8 +37,9 @@ require_once(__DIR__ . '/../stack/cas/ast.container.class.php');
 
 /**
  * @group qtype_stack
+ * @covers \stack_cas_session2
  */
-class stack_cas_session2_test extends qtype_stack_testcase {
+class cassession2_test extends qtype_stack_testcase {
 
     public function test_internal_config() {
         // This test checks if the version number returned by Maxima matches our internal config.
@@ -39,7 +52,7 @@ class stack_cas_session2_test extends qtype_stack_testcase {
 
         $ast = $at1->get_by_key('m');
         $maximaversion = '5.' . $ast->get_value();
-        $maximaconfig = get_config('qtype_stack', 'maximaversion');
+        $maximaconfig = \get_config('qtype_stack', 'maximaversion');
         $this->assertEquals($maximaconfig, $maximaversion);
     }
 
@@ -151,7 +164,7 @@ class stack_cas_session2_test extends qtype_stack_testcase {
 
     public function test_feedback() {
         $simpoff = stack_ast_container::make_from_teacher_source('simp:false', 'test_answernote()', new stack_cas_security());
-        $validation = stack_ast_container::make_from_teacher_source('stack_validate_typeless([2/4], true, true,"~a")',
+        $validation = stack_ast_container::make_from_teacher_source('stack_validate_typeless([2/4], true, 1/2, "~a", 0, true)',
                 'test_answernote()', new stack_cas_security());
 
         $session = new stack_cas_session2([$simpoff, $validation]);
@@ -198,7 +211,7 @@ class stack_cas_session2_test extends qtype_stack_testcase {
         // Add the shared stuff there naturelly before those...
         $basesession->prepend_to_session($prtsession);
 
-        // Now then lets make some statements. No options now.
+        // Now then let's make some statements. No options now.
         $sans = 'ans1';
         $tans = 'ta';
 
@@ -214,7 +227,7 @@ class stack_cas_session2_test extends qtype_stack_testcase {
         $prtsession->add_statement($tans);
         $prtsession->add_statement($result);
 
-        // Instanttiate.
+        // Instantiate.
         $prtsession->instantiate();
 
         // Check parameters.
@@ -389,6 +402,85 @@ class stack_cas_session2_test extends qtype_stack_testcase {
         $this->assertEquals('x\times \left(y\times z\right)', $s1[2]->get_display());
         // Notice the associativity of Maxima suppresses the extra explicit brackets here.
         $this->assertEquals('x\times y\times z', $s1[3]->get_display());
+
+    }
+
+    public function test_multiplication_option_onum() {
+
+        $s1 = [];
+        $cs = array('a:2*x', 'b:2*3*x', 'c:3*5^2', 'd:3*x^2');
+        foreach ($cs as $s) {
+            $s1[] = stack_ast_container::make_from_student_source($s, '', new stack_cas_security(), array());
+        }
+
+        $options = new stack_options();
+        $options->set_option('multiplicationsign', 'onum');
+        $options->set_option('simplify', false);
+
+        $at1 = new stack_cas_session2($s1, $options, 0);
+        $at1->instantiate();
+        $this->assertEquals('2\, x', $s1[0]->get_display());
+        $this->assertEquals('2\times 3\, x', $s1[1]->get_display());
+        $this->assertEquals('3\, 5^2', $s1[2]->get_display());
+        $this->assertEquals('3\, x^2', $s1[3]->get_display());
+
+        $s1 = [];
+        $cs = array('texput(multsgnonlyfornumberssym, "\\\\cdot")',
+            'a:9*x', 'b:5*7*x', 'c:3*5^2', 'd:3*x^2');
+        foreach ($cs as $s) {
+            $s1[] = stack_ast_container::make_from_teacher_source($s, '', new stack_cas_security(), array());
+        }
+
+        $options = new stack_options();
+        $options->set_option('multiplicationsign', 'onum');
+        $options->set_option('simplify', false);
+
+        $at1 = new stack_cas_session2($s1, $options, 0);
+        $at1->instantiate();
+        $this->assertEquals('9\, x', $s1[1]->get_display());
+        $this->assertEquals('5\cdot 7\, x', $s1[2]->get_display());
+        $this->assertEquals('3\, 5^2', $s1[3]->get_display());
+        $this->assertEquals('3\, x^2', $s1[4]->get_display());
+
+    }
+
+    public function test_function_power_display() {
+
+        $cs = array('A:f(0)', 'B:f(0)^5', 'C:f(x)', 'D:f(x)^3', 'E:f(x+1)', 'F:f(x+1)^30');
+        $s1 = array();
+        foreach ($cs as $s) {
+            $s1[] = stack_ast_container::make_from_teacher_source($s, '', new stack_cas_security(), array());
+        }
+
+        $options = new stack_options();
+        $at1 = new stack_cas_session2($s1, $options, 0);
+        $at1->instantiate();
+
+        $this->assertEquals('f\left(0\right)', $s1[0]->get_display());
+        $this->assertEquals('f^5\left(0\right)', $s1[1]->get_display());
+        $this->assertEquals('f\left(x\right)', $s1[2]->get_display());
+        $this->assertEquals('f^3\left(x\right)', $s1[3]->get_display());
+        $this->assertEquals('f\left(x+1\right)', $s1[4]->get_display());
+        $this->assertEquals('f^{30}\left(x+1\right)', $s1[5]->get_display());
+
+        $cs = array('A:sin(1)', 'B:sin(1)^5', 'C:sin(x)', 'D:sin(x)^3', 'E:sin(x+1)', 'F:sin(x+1)^30', 'G:sin^50');
+        $s1 = array();
+        foreach ($cs as $s) {
+            $s1[] = stack_ast_container::make_from_teacher_source($s, '', new stack_cas_security(), array());
+        }
+
+        $options = new stack_options();
+        $at1 = new stack_cas_session2($s1, $options, 0);
+        $at1->instantiate();
+
+        $this->assertEquals('\sin \left( 1 \right)', $s1[0]->get_display());
+        $this->assertEquals('\sin ^5\left(1\right)', $s1[1]->get_display());
+        // The test below is the odd one out, and required attention June 2021.
+        $this->assertEquals('\sin \left( x \right)', $s1[2]->get_display());
+        $this->assertEquals('\sin ^3\left(x\right)', $s1[3]->get_display());
+        $this->assertEquals('\sin \left( x+1 \right)', $s1[4]->get_display());
+        $this->assertEquals('\sin ^{30}\left(x+1\right)', $s1[5]->get_display());
+        $this->assertEquals('\sin ^{50}', $s1[6]->get_display());
     }
 
     public function test_acos_option_cosmone() {
@@ -406,7 +498,7 @@ class stack_cas_session2_test extends qtype_stack_testcase {
         $this->assertEquals('\cos^{-1}\left( x \right)', $s1[0]->get_display());
         $this->assertEquals('\sin^{-1}\left( x \right)', $s1[1]->get_display());
         $this->assertEquals('{\rm sinh}^{-1}\left( x \right)', $s1[2]->get_display());
-        $this->assertEquals('\sin^{-1}^3x', $s1[3]->get_display());
+        $this->assertEquals('\sin^{-1}^3\left(x\right)', $s1[3]->get_display());
         // Note, the LaTeX below will break MathJax.
         // But if you are willing to have inverses and powers with the same notation then you deserve to break things!
         $this->assertEquals('\sin^{-1}^{30}\left(x^2+1\right)', $s1[4]->get_display());
@@ -428,7 +520,7 @@ class stack_cas_session2_test extends qtype_stack_testcase {
         $this->assertEquals('{\rm acos}\left( x \right)', $s1[0]->get_display());
         $this->assertEquals('{\rm asin}\left( x \right)', $s1[1]->get_display());
         $this->assertEquals('{\rm asinh}\left( x \right)', $s1[2]->get_display());
-        $this->assertEquals('{\rm asin}^3x', $s1[3]->get_display());
+        $this->assertEquals('{\rm asin}^3\left(x\right)', $s1[3]->get_display());
         $this->assertEquals('{\rm asin}^{30}\left(x^2+1\right)', $s1[4]->get_display());
     }
 
@@ -447,8 +539,30 @@ class stack_cas_session2_test extends qtype_stack_testcase {
         $this->assertEquals('\arccos \left( x \right)', $s1[0]->get_display());
         $this->assertEquals('\arcsin \left( x \right)', $s1[1]->get_display());
         $this->assertEquals('{\rm arcsinh}\left( x \right)', $s1[2]->get_display());
-        $this->assertEquals('\arcsin ^3x', $s1[3]->get_display());
+        $this->assertEquals('\arcsin ^3\left(x\right)', $s1[3]->get_display());
         $this->assertEquals('\arcsin ^{30}\left(x^2+1\right)', $s1[4]->get_display());
+    }
+
+    public function test_acos_option_arcosh() {
+
+        $cs = array('a:acos(x)', 'b:asin(x)', 'c:asinh(x)', 'd:asin(x)^3', 'e:asin(x^2+1)^30',
+            'f:asinh(x)^7', 'g:asinh(x)^70');
+        foreach ($cs as $s) {
+            $s1[] = stack_ast_container::make_from_student_source($s, '', new stack_cas_security(), array());
+        }
+
+        $options = new stack_options();
+        $options->set_option('inversetrig', 'arccos-arcosh');
+
+        $at1 = new stack_cas_session2($s1, $options, 0);
+        $at1->instantiate();
+        $this->assertEquals('\arccos \left( x \right)', $s1[0]->get_display());
+        $this->assertEquals('\arcsin \left( x \right)', $s1[1]->get_display());
+        $this->assertEquals('{\rm arsinh}\left( x \right)', $s1[2]->get_display());
+        $this->assertEquals('\arcsin ^3\left(x\right)', $s1[3]->get_display());
+        $this->assertEquals('\arcsin ^{30}\left(x^2+1\right)', $s1[4]->get_display());
+        $this->assertEquals('{\rm arsinh}^7\left(x\right)', $s1[5]->get_display());
+        $this->assertEquals('{\rm arsinh}^{70}\left(x\right)', $s1[6]->get_display());
     }
 
     public function test_logicsymbol_option_lang() {
@@ -814,7 +928,7 @@ class stack_cas_session2_test extends qtype_stack_testcase {
         $at1 = new stack_cas_session2($s1, null, 0);
         $at1->instantiate();
         $this->assertEquals('0', $s1[0]->get_value());
-        $this->assertRegExp('/Division by (zero|0)/', trim($s1[1]->get_errors()));
+        $this->assertMatchesRegularExpression('/Division by (zero|0)/', trim($s1[1]->get_errors()));
         $this->assertFalse(strpos($s1[1]->get_value(), 'STACK auto-generated plot of 0 with parameters'));
     }
 
@@ -826,7 +940,7 @@ class stack_cas_session2_test extends qtype_stack_testcase {
         $at1 = new stack_cas_session2($s1, null, 0);
         $at1->instantiate();
         $this->assertEquals('a', $s1[0]->get_value());
-        $this->assertEquals('rand_selection error: first argument must be a list.', $s1[0]->get_errors());
+        $this->assertEquals('rand_selection error: first argument must be a list or set.', $s1[0]->get_errors());
     }
 
     public function test_rand_selection_err_2() {
@@ -837,11 +951,21 @@ class stack_cas_session2_test extends qtype_stack_testcase {
         $at1 = new stack_cas_session2($s1, null, 0);
         $at1->instantiate();
         $this->assertEquals('a', $s1[0]->get_value());
-        $this->assertEquals('rand_selection error: insuffient elements in the list.', $s1[0]->get_errors());
+        $this->assertEquals('rand_selection error: insuffient elements in the list/set.', $s1[0]->get_errors());
     }
 
     public function test_rand_selection() {
         $cs = array('a:rand_selection([a,b,c,d], 4)', 'b:sort(a)');
+        foreach ($cs as $s) {
+            $s1[] = stack_ast_container::make_from_teacher_source($s, '', new stack_cas_security(), array());
+        }
+        $at1 = new stack_cas_session2($s1, null, 0);
+        $at1->instantiate();
+        $this->assertEquals('[a,b,c,d]', $s1[1]->get_value());
+    }
+
+    public function test_rand_selection_set() {
+        $cs = array('a:rand_selection({a,b,c,d}, 4)', 'b:sort(a)');
         foreach ($cs as $s) {
             $s1[] = stack_ast_container::make_from_teacher_source($s, '', new stack_cas_security(), array());
         }
@@ -1409,9 +1533,10 @@ class stack_cas_session2_test extends qtype_stack_testcase {
         // All these tests should work with simp:false.
         foreach ($tests as $key => $c) {
             if ($s1[$key]->is_correctly_evaluated()) {
-                $this->assertEquals($c[2], $s1[$key]->get_display());
-                $this->assertEquals($c[3], $s1[$key]->get_dispvalue());
-                $this->assertEquals($c[4], $s1[$key]->get_value());
+                // Turn 1.0E-5 to lower case 1.0e-5.
+                $this->assertEquals($c[2], $this->prepare_actual_maths_floats($s1[$key]->get_display()));
+                $this->assertEquals($c[3], $this->prepare_actual_maths_floats($s1[$key]->get_dispvalue()));
+                $this->assertEquals($c[4], $this->prepare_actual_maths_floats($s1[$key]->get_value()));
             } else {
                 // Help output which test fails.
 
@@ -1450,9 +1575,9 @@ class stack_cas_session2_test extends qtype_stack_testcase {
             if (array_key_exists(7, $c)) {
                 $val = $c[7];
             }
-            $this->assertEquals($simpdisp, $s2[$key]->get_display());
-            $this->assertEquals($dispval, $s2[$key]->get_dispvalue());
-            $this->assertEquals($val, $s2[$key]->get_value());
+            $this->assertEquals($simpdisp, $this->prepare_actual_maths_floats($s2[$key]->get_display()));
+            $this->assertEquals($dispval, $this->prepare_actual_maths_floats($s2[$key]->get_dispvalue()));
+            $this->assertEquals($val, $this->prepare_actual_maths_floats($s2[$key]->get_value()));
         }
     }
 
@@ -1934,10 +2059,12 @@ class stack_cas_session2_test extends qtype_stack_testcase {
                     '', new stack_cas_security(), array());
         }
 
-        $expected = '([Root] ([Op: :] ([Id] ta), ([FunctionCall: ([Id] ev)] ' .
-            '([FunctionCall: ([Id] taylor)] ([Op: *] ([Int] 10), ' .
-            '([FunctionCall: ([Id] cos)] ([Op: *] ([Int] 2), ([Id] x)))),([Id] x),([Op: /] ' .
-            '([Id] %pi), ([Int] 4)),([Int] 2)),([Id] simp))))';
+        $expected = '([Root] ([Op: :] ([Id] ta), ([FunctionCall: ([Id] block)] ([List] ([Id] %_sev_e), ' .
+            '([Id] %_sev_s)),([Op: :] ([Id] %_sev_s), ([Id] simp)),([Op: :] ([Id] simp), ([Bool] true)),([Op: :] ' .
+            '([Id] %_sev_e), ([FunctionCall: ([Id] taylor)] ([Op: *] ([Int] 10), ([FunctionCall: ([Id] cos)] ([Op: *] ' .
+            '([Int] 2), ([Id] x)))),([Id] x),([Op: /] ([Id] %pi), ([Int] 4)),([Int] 2))),([Op: :] ' .
+            '([Id] simp), ([Id] %_sev_s)),([FunctionCall: ([Id] ev)] ([FunctionCall: ([Id] %_E)] ' .
+            '([Id] %_sev_e)),([Id] simp)))))';
         $this->assertEquals($expected, $s1[0]->get_ast_test());
 
         $options = new stack_options();
@@ -1945,14 +2072,13 @@ class stack_cas_session2_test extends qtype_stack_testcase {
         $at1 = new stack_cas_session2($s1, $options, 0);
         $at1->instantiate();
 
-        $this->assertEquals('+-(20*(x-%pi/4))', $s1[0]->get_value());
-        $this->assertEquals('+-(20*(x-%pi/4))', $s1[0]->get_dispvalue());
-        $this->assertEquals('+\left(-20\cdot \left(x-\frac{\pi}{4}\right)\right)+\cdots',
+        $this->assertEquals('(20*%pi-80*x)/4', $s1[0]->get_value());
+        $this->assertEquals('(20*%pi-80*x)/4', $s1[0]->get_dispvalue());
+        $this->assertEquals('\frac{20\cdot \pi-80\cdot x}{4}',
                 $s1[0]->get_display());
 
-        // The evaluated form does not contain the explicit +- operator.
-        $expected = '([PrefixOp: +] ([PrefixOp: -] ([Group] ([Op: *] ([Int] 20), ([Group] ([Op: /] ' .
-            '([Op: -] ([Id] x), ([Id] %pi)), ([Int] 4)))))))';
+        $expected = '([Op: /] ([Group] ([Op: *] ([Int] 20), ([Op: *] ([Op: -] ([Id] %pi), ([Int] 80)), ([Id] x)))), ' .
+            '([Int] 4))';
         $this->assertEquals($expected, $s1[0]->get_ast_test());
     }
 
@@ -2141,8 +2267,302 @@ class stack_cas_session2_test extends qtype_stack_testcase {
         $s = new stack_cas_session2($s1, $options, 0);
         $s->instantiate();
 
+        $a = array();
+        foreach ($s->get_contextvariables() as $i => $v) {
+            $a[$i] = $v->get_evaluationform();
+        }
+        $this->assertEquals(array('(%_C(ordergreat),ordergreat(x,y,z))'), $a);
+
         foreach ($t1 as $i => $t) {
             $this->assertEquals($t[1], $s1[$i]->get_value());
         }
+    }
+
+    public function test_silent_tellsimp() {
+
+        $qv = "matchdeclare(pmpatex1,true);\nmatchdeclare(pmpatex2,true);" .
+            "tellsimpafter((pmpatex1 #pm# pmpatex2)!,(pmpatex1^2) #pm# pmpatex2);\n" .
+            "p1:(b #pm# c)!;";
+        $qv = new stack_cas_keyval($qv, null, 123);
+
+        $at1 = $qv->get_session();
+        $at1->instantiate();
+        $cs = $at1->get_by_key('p1');
+        $this->assertEquals("b^2#pm#c", $cs->get_value());
+    }
+
+    public function test_eval_in_block() {
+        $qv = "f:ev(2*x,x=2);\n" .
+            "ev(g:3*x,x=3);\n" .
+            "h:5*x,x=5;\n".
+            "k:36;";
+        $qv = new stack_cas_keyval($qv, null, 123);
+        $this->assertTrue($qv->get_valid());
+
+        $session = $qv->get_session();
+        $s1 = stack_ast_container::make_from_teacher_source('[f,g,h,k]', '', new stack_cas_security(), array());
+        $session->add_statement($s1);
+        $this->assertTrue($session->get_valid());
+
+        $session->instantiate();
+        $this->assertTrue($session->is_instantiated());
+
+        $this->assertEquals('[4,9,25,36]', $s1->get_value());
+    }
+
+    public function test_confirm_induced_timeout() {
+        $qv = "p:1;\n" .
+              "for i:1 thru 2^100 do p:p+(-1)^i;\n";
+        $qv = new stack_cas_keyval($qv, null, 123);
+        $this->assertTrue($qv->get_valid());
+
+        $session = $qv->get_session();
+        $s1 = stack_ast_container::make_from_teacher_source('p', '', new stack_cas_security(), array());
+        $session->add_statement($s1);
+        $this->assertTrue($session->get_valid());
+
+        $session->instantiate();
+        $this->assertFalse($session->is_instantiated());
+        $this->assertEquals('TIMEDOUT', $s1->get_errors());
+    }
+
+    public function test_complex_number_display() {
+
+        // These test cases get wrapped in the general display_complex(ex) function to test the default conversion.
+        $cases = array();
+        $cases[] = array('3+2*%i', '3+2\,\mathrm{i}');
+        $cases[] = array('-3+2*%i', '-3+2\,\mathrm{i}');
+        $cases[] = array('-3-2*%i', '-3-2\,\mathrm{i}');
+        $cases[] = array('3-2*%i', '3-2\,\mathrm{i}');
+        $cases[] = array('1+%i', '1+\mathrm{i}');
+        $cases[] = array('1-%i', '1-\mathrm{i}');
+        $cases[] = array('3/2+%i', '\frac{3}{2}+\mathrm{i}');
+        $cases[] = array('(3+2*%i)/2', '\frac{3}{2}+\mathrm{i}');
+        $cases[] = array('%i', '\mathrm{i}');
+        $cases[] = array('-%i', '-\mathrm{i}');
+        $cases[] = array('a+b*%i', 'a+\mathrm{i}\,b');
+        $cases[] = array('-a+b*%i', '-a+\mathrm{i}\,b');
+        $cases[] = array('a-b*%i', 'a-\mathrm{i}\,b');
+        $cases[] = array('%i * 3/5', '\frac{3}{5}\,\mathrm{i}');
+        // Note this is not displayed as \frac{\mathrm{i}}{5} by design.
+        $cases[] = array('%i/5', '\frac{1}{5}\,\mathrm{i}');
+        $cases[] = array('%i/sqrt(2)', '\frac{1}{\sqrt{2}}\,\mathrm{i}');
+        // Note this function simplifies its arguments.
+        $cases[] = array('2*%i/sqrt(2)', '\sqrt{2}\,\mathrm{i}');
+        $cases[] = array('%i * p/q', '\mathrm{i}\,\frac{p}{q}');
+        $cases[] = array('%i * sqrt(2)', '\sqrt{2}\,\mathrm{i}');
+        $cases[] = array('%i * sqrt(2)/5', '\frac{\sqrt{2}}{5}\,\mathrm{i}');
+        $cases[] = array('%i * %pi', '\pi\,\mathrm{i}');
+        $cases[] = array('%i * 2*%pi', '2\cdot \pi\,\mathrm{i}');
+        $cases[] = array('%i * 2*%pi/3', '\frac{2\cdot \pi}{3}\,\mathrm{i}');
+
+        $s1 = array();
+        foreach ($cases as $k => $case) {
+            $s1[] = stack_ast_container::make_from_teacher_source('display_complex(' . $case[0] . ')',
+                '', new stack_cas_security(), array());
+        }
+        $options = new stack_options();
+        $options->set_option('simplify', false);
+        $session = new stack_cas_session2($s1, $options, 0);
+        $this->assertTrue($session->get_valid());
+
+        $session->instantiate();
+        $this->assertTrue($session->is_instantiated());
+
+        foreach ($cases as $k => $case) {
+            $this->assertEquals($case[1], $s1[$k]->get_display());
+        }
+
+        $cases = array();
+        $cases[] = array('disp_complex(3,2)', '3+2\,\mathrm{i}');
+        $cases[] = array('disp_complex(2/4,1)', '\frac{2}{4}+1\,\mathrm{i}');
+        $cases[] = array('disp_complex(0,2)', '0+2\,\mathrm{i}');
+        $cases[] = array('disp_complex(0,1)', '0+1\,\mathrm{i}');
+        // This is not displayed as i/2 by design.
+        $cases[] = array('disp_complex(null,1/2)', '\frac{1}{2}\,\mathrm{i}');
+        $cases[] = array('disp_complex(null,2)', '2\,\mathrm{i}');
+        $cases[] = array('disp_complex(null,-2)', '-2\,\mathrm{i}');
+        $cases[] = array('disp_complex(1,null)', '1+\mathrm{i}');
+        $cases[] = array('disp_complex(1,-null)', '1-\mathrm{i}');
+        $cases[] = array('disp_complex(null,-null)', '-\mathrm{i}');
+        $cases[] = array('disp_complex(a,b)', 'a+\mathrm{i}\,b');
+        // This simplifies the second argumet in order to pull out the unary minus.
+        // This is a feature, not a bug!
+        $cases[] = array('disp_complex(a,(-b^2)/b)', 'a-\mathrm{i}\,b');
+        $cases[] = array('disp_complex(a,b^2/b)', 'a+\mathrm{i}\,\frac{b^2}{b}');
+
+        $s1 = array();
+        foreach ($cases as $k => $case) {
+            $s1[] = stack_ast_container::make_from_teacher_source($case[0], '', new stack_cas_security(), array());
+        }
+        $options = new stack_options();
+        $options->set_option('simplify', false);
+        $session = new stack_cas_session2($s1, $options, 0);
+        $this->assertTrue($session->get_valid());
+
+        $session->instantiate();
+        $this->assertTrue($session->is_instantiated());
+
+        foreach ($cases as $k => $case) {
+            $this->assertEquals($case[1], $s1[$k]->get_display());
+        }
+    }
+
+    public function test_complex_number_display_options() {
+
+        // These test cases get wrapped in the general display_complex(ex) function to test the default conversion.
+        $cases = array();
+        $cases[] = array('3+2*%i', '3+2\,\mathrm{j}');
+        $cases[] = array('-3+2*%i', '-3+2\,\mathrm{j}');
+        $cases[] = array('-3-2*%i', '-3-2\,\mathrm{j}');
+        $cases[] = array('3-2*%i', '3-2\,\mathrm{j}');
+        $cases[] = array('1+%i', '1+\mathrm{j}');
+        $cases[] = array('1-%i', '1-\mathrm{j}');
+
+        $cases[] = array('-3+2*%j', '-3+2\,\mathrm{j}');
+
+        $s1 = array();
+        foreach ($cases as $k => $case) {
+            $s1[] = stack_ast_container::make_from_teacher_source('display_complex(' . $case[0] . ')',
+                '', new stack_cas_security(), array());
+        }
+        $options = new stack_options();
+        $options->set_option('simplify', false);
+        $options->set_option('complexno', 'j');
+        $session = new stack_cas_session2($s1, $options, 0);
+        $this->assertTrue($session->get_valid());
+
+        $session->instantiate();
+        $this->assertTrue($session->is_instantiated());
+
+        foreach ($cases as $k => $case) {
+            $this->assertEquals($case[1], $s1[$k]->get_display());
+        }
+    }
+
+    public function test_parens_delect_display() {
+
+        $cases = array();
+        $cases[] = array('disp_parens(a+b)+c', '\left( a+b \right)+c');
+        $cases[] = array('int(disp_parens(x-2),x)', '\int {\left( x-2 \right)}{\;\mathrm{d}x}');
+        $cases[] = array('disp_parens(display_complex(1+%i))*x^2+disp_parens(display_complex(1-%i))',
+        '\left( 1+\mathrm{i} \right)\cdot x^2+\left( 1-\mathrm{i} \right)');
+        $cases[] = array('disp_select(a+b)+c', '\color{red}{\underline{a+b}}+c');
+        $cases[] = array('remove_disp(disp_select(a+b)+c)', 'a+b+c');
+
+        $s1 = array();
+        foreach ($cases as $k => $case) {
+            $s1[] = stack_ast_container::make_from_teacher_source($case[0], '', new stack_cas_security(), array());
+        }
+        $options = new stack_options();
+        $options->set_option('simplify', false);
+        $session = new stack_cas_session2($s1, $options, 0);
+        $this->assertTrue($session->get_valid());
+
+        $session->instantiate();
+        $this->assertTrue($session->is_instantiated());
+
+        foreach ($cases as $k => $case) {
+            $this->assertEquals($case[1], $s1[$k]->get_display());
+        }
+    }
+
+    public function test_parens_select() {
+
+        $cases = array();
+        $cases[] = array('select(integerp, 3)', '\color{red}{\underline{3}}');
+        $cases[] = array('select(integerp, 0.5)', '0.5');
+        $cases[] = array('select(integerp, 1+x+0.5*x^2)',
+            '\color{red}{\underline{1}}+x+0.5\cdot x^{\color{red}{\underline{2}}}');
+        $cases[] = array('select(zeroMulp, (1-1)*x^2+0*x+1)',
+            '\left(1-1\right)\cdot x^2+\color{red}{\underline{0\cdot x}}+1');
+
+        $s1 = array();
+        foreach ($cases as $k => $case) {
+            $s1[] = stack_ast_container::make_from_teacher_source($case[0], '', new stack_cas_security(), array());
+        }
+        $options = new stack_options();
+        $options->set_option('simplify', false);
+        $session = new stack_cas_session2($s1, $options, 0);
+        $this->assertTrue($session->get_valid());
+
+        $session->instantiate();
+        $this->assertTrue($session->is_instantiated());
+
+        foreach ($cases as $k => $case) {
+            $this->assertEquals($case[1], $s1[$k]->get_display());
+        }
+    }
+
+    public function test_fboundp() {
+
+        $cases = array();
+        $cases[] = array('fboundp(sinner)', 'false');
+        $cases[] = array('fboundp(sin)', 'true');
+        $cases[] = array('fboundp("+")', 'true');
+        $cases[] = array('fboundp(expand)', 'true');
+        // A STACK defined function.
+        $cases[] = array('fboundp(intervalp)', 'true');
+
+        $s1 = array();
+        foreach ($cases as $k => $case) {
+            $s1[] = stack_ast_container::make_from_teacher_source($case[0], '', new stack_cas_security(), array());
+        }
+        $options = new stack_options();
+        $options->set_option('simplify', false);
+        $session = new stack_cas_session2($s1, $options, 0);
+        $this->assertTrue($session->get_valid());
+
+        $session->instantiate();
+        $this->assertTrue($session->is_instantiated());
+
+        foreach ($cases as $k => $case) {
+            $this->assertEquals($case[1], $s1[$k]->get_value());
+        }
+    }
+
+    public function test_diag() {
+
+        $cases = array();
+        $cases[] = array('j1:jordan(matrix([1,2,3,4],[5,6,7,8],[2,3,4,5],[6,7,8,9]))',
+            '[[10-2*sqrt(31),1],[2*sqrt(31)+10,1],[0,1,1]]');
+        $cases[] = array('j2:dispJordan(j1)',
+            'matrix([10-2*sqrt(31),0,0,0],[0,2*sqrt(31)+10,0,0],[0,0,0,0],[0,0,0,0])');
+
+        $s1 = array();
+        foreach ($cases as $k => $case) {
+            $s1[] = stack_ast_container::make_from_teacher_source($case[0], '', new stack_cas_security(), array());
+        }
+        $options = new stack_options();
+        $options->set_option('simplify', true);
+        $session = new stack_cas_session2($s1, $options, 0);
+        $this->assertTrue($session->get_valid());
+
+        $session->instantiate();
+        $this->assertTrue($session->is_instantiated());
+        foreach ($cases as $k => $case) {
+            $this->assertEquals($case[1], $s1[$k]->get_value());
+        }
+    }
+
+    public function test_stackmaximaversion() {
+        // This test ensures that we are not running against different
+        // version number of the STACK-Maxima scripts. For example,
+        // old image in a server setup or a cache layer somewhere.
+
+        $scriptversion = file_get_contents(__DIR__ . '/../stack/maxima/stackmaxima.mac');
+        $scriptversion = explode('stackmaximaversion:', $scriptversion);
+        $scriptversion = $scriptversion[count($scriptversion) - 1];
+        $scriptversion = explode('$', $scriptversion)[0];
+
+        $cs = stack_ast_container::make_from_teacher_source('stackmaximaversion', 'version-check');
+
+        $session = new stack_cas_session2([$cs]);
+
+        $session->get_valid();
+        $session->instantiate();
+
+        $this->assertEquals($scriptversion, $cs->get_value(),
+            'To fix this: Check STACK-Maxima script versions, purge caches and/or regenerate images.');
     }
 }

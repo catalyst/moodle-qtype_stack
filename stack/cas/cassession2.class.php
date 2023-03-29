@@ -29,6 +29,7 @@ require_once(__DIR__ . '/connectorhelper.class.php');
 require_once(__DIR__ . '/../options.class.php');
 require_once(__DIR__ . '/../utils.class.php');
 require_once(__DIR__ . '/evaluatable_object.interfaces.php');
+require_once(__DIR__ . '/caserror.class.php');
 
 class stack_cas_session2 {
     /**
@@ -51,6 +52,13 @@ class stack_cas_session2 {
     private $seed;
 
     private $errors;
+
+    /**
+     * @var string the name of the error-wrapper-class, tuneable for use in
+     * other contexts, e.g. Stateful.
+     */
+    public $errclass = 'stack_cas_error';
+
 
     /**
      * @var string
@@ -96,6 +104,17 @@ class stack_cas_session2 {
         return $this->statements;
     }
 
+    public function get_contextvariables(): array {
+        $ret = array();
+        foreach ($this->statements as $statement) {
+            if (method_exists($statement, 'is_toplevel_property') &&
+                $statement->is_toplevel_property('contextvariable')) {
+                    $ret[] = $statement;
+            }
+        }
+        return $ret;
+    }
+
     public function get_options(): stack_options {
         return $this->options;
     }
@@ -131,7 +150,7 @@ class stack_cas_session2 {
      */
     public function prepend_to_session(stack_cas_session2 $target) {
         $target->statements = array_merge($this->statements, $target->statements);
-        $this->instantiated = false;
+        $target->instantiated = false;
     }
 
     /**
@@ -141,7 +160,7 @@ class stack_cas_session2 {
      */
     public function append_to_session(stack_cas_session2 $target) {
         $target->statements = array_merge($target->statements, $this->statements);
-        $this->instantiated = false;
+        $target->instantiated = false;
     }
 
     public function get_variable_usage(array $updatearray = array()): array {
@@ -186,9 +205,10 @@ class stack_cas_session2 {
      * This includes errors validating castrings prior to instantiation.
      * And it includes any runtime errors, specifically if we get nothing back.
      */
-    public function get_errors($implode = true) {
+    public function get_errors($implode = true, $withcontext = true) {
         $errors = array();
         $this->timeouterrmessage = trim($this->timeouterrmessage);
+
         foreach ($this->statements as $num => $statement) {
             $err = $statement->get_errors('implode');
             if ($err) {
@@ -225,7 +245,11 @@ class stack_cas_session2 {
             foreach ($statementerrors as $value) {
                 // Element [0] is the list of errors.
                 // Element [1] is the context information.
-                $r[] = implode(' ', $value[0]);
+                if ($withcontext) {
+                    $r[] = implode(' ', $value[1] . ': ' .$value[0]);
+                } else {
+                    $r[] = implode(' ', $value[0]);
+                }
             }
         }
         return implode(' ', $r);
@@ -361,23 +385,16 @@ class stack_cas_session2 {
             $command .= ',' . $key . ')';
         }
 
-        // Pack values to the response.
-        $command .= self::SEP . '_RESPONSE:stackmap_set(_RESPONSE,"timeout",false)';
-        $command .= self::SEP . '_RESPONSE:stackmap_set(_RESPONSE,"values",_VALUES)';
+        // Pack optional values to the response.
         if (count($collectlatex) > 0) {
             $command .= self::SEP . '_RESPONSE:stackmap_set(_RESPONSE,"presentation",_LATEX)';
         }
         if ((count($collectdvs) + count($collectdvsandvalues)) > 0) {
             $command .= self::SEP . '_RESPONSE:stackmap_set(_RESPONSE,"display",_DVALUES)';
         }
-        $command .= self::SEP . 'if length(%ERR)>1 then _RESPONSE:stackmap_set(_RESPONSE,"errors",%ERR)';
-        $command .= self::SEP . 'if length(%NOTES)>1 then _RESPONSE:stackmap_set(_RESPONSE,"notes",%NOTES)';
-        $command .= self::SEP . 'if length(%FEEDBACK)>1 then _RESPONSE:stackmap_set(_RESPONSE,"feedback",%FEEDBACK)';
 
-        // Then output them.
-        $command .= self::SEP . 'print("STACK-OUTPUT-BEGINS>")';
-        $command .= self::SEP . 'print(stackjson_stringify(_RESPONSE))';
-        $command .= self::SEP . 'print("<STACK-OUTPUT-ENDS")';
+        // Then output the response.
+        $command .= self::SEP . '_CS2out()';
         $command .= "\n)$\n";
 
         // Prepend those statements which should be outside the block.
@@ -396,7 +413,7 @@ class stack_cas_session2 {
                 $this->timeouterrmessage = $results['timeouterrmessage'];
             }
             foreach ($this->statements as $num => $statement) {
-                $errors = array('TIMEDOUT');
+                $errors = array(new $this->errclass('TIMEDOUT', ''));
                 $statement->set_cas_status($errors, array(), array());
             }
         } else {
@@ -449,8 +466,11 @@ class stack_cas_session2 {
                         foreach ($results['errors']['s' . $num] as $errs) {
                             // The first element is a list of errors declared
                             // at a given position in the logic.
-                            // There can be errors from multiple positions.
-                            $err = array_merge($err, $errs[0]);
+                            // There can be multiple errors from multiple positions.
+                            // The second element is the position.
+                            foreach ($errs[0] as $er) {
+                                $err[] = new $this->errclass(stack_utils::maxima_translate_string($er), $errs[1]);
+                            }
                         }
                     }
                 }
@@ -458,7 +478,7 @@ class stack_cas_session2 {
                 $last = null;
                 $errb = array();
                 foreach ($err as $error) {
-                    if (strpos($error, 'STACK: ignore previous error.') !== false) {
+                    if (strpos($error->get_legacy_error(), 'STACK: ignore previous error.') !== false) {
                         $last = null;
                     } else {
                         if ($last !== null) {
@@ -512,9 +532,19 @@ class stack_cas_session2 {
      */
     public function get_keyval_representation($evaluatedvalues = false): string {
         $keyvals = '';
+        $params = array('checkinggroup' => true,
+            'qmchar' => false,
+            'pmchar' => false,
+            'nosemicolon' => true,
+            'keyless' => false,
+            'dealias' => true, // This is needed to stop pi->%pi etc.
+            'nounify' => 0,
+            'nontuples' => false
+        );
+
         foreach ($this->statements as $statement) {
             if ($evaluatedvalues) {
-                if ($statement->is_correctly_evaluated()) {
+                if (is_a($statement, 'stack_ast_container') && $statement->is_correctly_evaluated()) {
                     // Only print out variables with a key, to display their values.
                     $key = trim($statement->get_key());
                     if ($key !== '') {
@@ -523,7 +553,7 @@ class stack_cas_session2 {
                 }
             } else {
                 if ($statement->get_valid()) {
-                    $val = trim($statement->get_evaluationform());
+                    $val = trim($statement->ast_to_string(null, $params));
                     $keyvals .= $val . ";\n";
                 } else {
                     $keyvals .= "/* " . stack_string('stackInstall_testsuite_errors') . " */\n";

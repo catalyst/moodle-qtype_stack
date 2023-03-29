@@ -850,6 +850,52 @@ function xmldb_qtype_stack_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2020112100, 'qtype', 'stack');
     }
 
+    if ($oldversion < 2021010100) {
+
+        $table = new xmldb_table('qtype_stack_options');
+        $field = new xmldb_field('compiledcache', XMLDB_TYPE_TEXT, null, null, false, null, null);
+
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        // Qtype stack savepoint reached.
+        upgrade_plugin_savepoint(true, 2021010100, 'qtype', 'stack');
+    }
+
+    if ($oldversion < 2022042700) {
+        // Changing type of field truescore on table qtype_stack_prt_nodes to char.
+        $table = new xmldb_table('qtype_stack_prt_nodes');
+        $field = new xmldb_field('truescore', XMLDB_TYPE_CHAR, '255', null, XMLDB_NOTNULL, null, '1', 'truescoremode');
+
+        // Launch change of type for field truescore.
+        $dbman->change_field_type($table, $field);
+
+        // Changing type of field truepenalty on table qtype_stack_prt_nodes to char.
+        $table = new xmldb_table('qtype_stack_prt_nodes');
+        $field = new xmldb_field('truepenalty', XMLDB_TYPE_CHAR, '255', null, null, null, null, 'truescore');
+
+        // Launch change of type for field truepenalty.
+        $dbman->change_field_type($table, $field);
+
+        // Changing type of field falsescore on table qtype_stack_prt_nodes to char.
+        $table = new xmldb_table('qtype_stack_prt_nodes');
+        $field = new xmldb_field('falsescore', XMLDB_TYPE_CHAR, '255', null, null, null, '0', 'falsescoremode');
+
+        // Launch change of type for field falsescore.
+        $dbman->change_field_type($table, $field);
+
+        // Changing type of field falsepenalty on table qtype_stack_prt_nodes to char.
+        $table = new xmldb_table('qtype_stack_prt_nodes');
+        $field = new xmldb_field('falsepenalty', XMLDB_TYPE_CHAR, '255', null, null, null, null, 'falsescore');
+
+        // Launch change of type for field falsepenalty.
+        $dbman->change_field_type($table, $field);
+
+        // Stack savepoint reached.
+        upgrade_plugin_savepoint(true, 2022042700, 'qtype', 'stack');
+    }
+
     // Add new upgrade blocks just above here.
 
     // Check the version of the Maxima library code that comes with this version
@@ -880,6 +926,8 @@ function xmldb_qtype_stack_upgrade($oldversion) {
                 echo html_writer::div(get_string('healthautomaxoptintro', 'qtype_stack'), 'adminwarning');
             }
         }
+        // For every update we clear the compile caches.
+        $DB->execute('UPDATE {qtype_stack_options} SET compiledcache = ?', ['{}']);
     }
 
     return true;

@@ -33,9 +33,13 @@
     border: 1px solid #ccc;
     padding: 0.3em;
 }
+.stackinputfeedback .MathJax_Display {
+    margin: 0.5em 0;
+}
 .que.stack .stackinputerror {
     padding: 0.2em 0.2em 0.2em;
     margin: 3px 3px 3px;
+    display: block;
 }
 .que.stack .stackinputnotice {
     font-size: x-small;
@@ -61,6 +65,12 @@
     display: inline-block;
     max-width: 100%;
     resize: both;
+}
+#id_questionvariables,
+textarea[id*=feedbackvariables],
+textarea[name=maximavars] {
+    min-width: 100%;
+    font-family: monospace;
 }
 .que.stack input[type=checkbox] {
     margin-right: 0.4em;
@@ -88,11 +98,12 @@
 .que.stack .formulation .stackprtfeedback .partiallycorrect,
 .que.stack .formulation .stackprtfeedback .incorrect {
     background: transparent;
+    font-weight: 700;
 }
 .que.stack .formulation .questiontestslink {
     float: right;
-    font-size: 0.7em;
-    margin: -1.3em -3em;
+    font-size: 0.8em;
+    margin: -0.3em -0.3em;
 }
 body.pagelayout-embedded .que.stack .formulation .questiontestslink {
     display: none;
@@ -111,10 +122,7 @@ body.pagelayout-embedded .que.stack .formulation .questiontestslink {
     border: 0;
     border-left: 2px solid #000;
     border-right: 2px solid #000;
-    border-top-left-radius: 1em;
-    border-top-right-radius: 1em;
-    border-bottom-left-radius: 1em;
-    border-bottom-right-radius: 1em;
+    border-radius: 1em;
     padding: 0.5em;
 }
 
@@ -155,6 +163,23 @@ body.pagelayout-embedded .que.stack .formulation .questiontestslink {
     width: 3rem;
     height: 3rem;
     outline: none;
+    direction: ltr;
+    unicode-bidi: plaintext;
+}
+
+.que.stack textarea.equivinput {
+    overflow: hidden;
+    white-space: pre;
+    outline: none;
+    direction: ltr;
+    unicode-bidi: plaintext;
+}
+
+body.path-question-type-stack-doc blockquote {
+    border-left: 5px solid #ccc;
+    margin: 1.5em 10px;
+    padding: 1em 10px .1em 10px;
+    quotes: "\201C""\201D""\2018""\2019";
 }
 
 /* Support for proof. */
@@ -165,10 +190,7 @@ body.pagelayout-embedded .que.stack .formulation .questiontestslink {
     border: 1px solid #ddd;
     border-radius: 4px;
     padding: 3px;
-    margin-top: 2px;
-    margin-bottom: 2px;
-    margin-right: 4px;
-    margin-left: 4px;
+    margin: 2px 4px;
     overflow: hidden;
 }
 .proof-block {
@@ -259,7 +281,6 @@ ol.proof-steps > li:before {
     z-index: 2;
     background-color: #039;
     color: white;
-    font-size: 14px;
     font-weight: 600;
     vertical-align: middle;
     padding-top: 1px;
@@ -327,7 +348,6 @@ body.path-question-type-stack dd {
 }
 body#page-question-type-stack-healthcheck textarea {
     font-family: monospace;
-    font-size: 0.8em;
     width: 100%;
     white-space: pre;
 }
@@ -361,7 +381,22 @@ body.path-question-type-stack table.stacktestsuite .expectedfail td {
     background-color: #ffd;
 }
 body.path-question-type-stack table.stacktestsuite pre {
-    font-size: 0.7em;
+    font-size: 0.8em;
+    background: #fff9;
+    padding: 0.25rem;
+    max-width: 60em;
+}
+body.path-question-type-stack .stacktestsuite td {
+    padding: 0.3rem;
+}
+body.path-question-type-stack .stacktestsuite .MathJax_Display {
+    margin: 0;
+}
+body.path-question-type-stack .stacktestsuite {
+    margin-bottom: 0.5rem;
+}
+.questionvariables pre {
+    white-space: pre-wrap;
 }
 body.path-question-type-stack h2.fail,
 body.path-question-type-stack h3 span.fail {
@@ -462,16 +497,16 @@ body.ie:not(.ie11) .stack_abstract_graph {
     stroke-linecap: round;
 }
 .stack_abstract_graph text {
-    font-family: Verdana, Sans-Serif;
+    font-family: Verdana, sans-serif;
 }
 .stack_abstract_graph text.nodelabel {
-    font-size: 14px;
+    font-size: 0.8em;
     fill: #fff;
     alignment-baseline: middle;
     text-anchor: middle;
 }
 .stack_abstract_graph text.edgelabel {
-    font-size: 10px;
+    font-size: 0.8em;
     fill: #000;
     alignment-baseline: middle;
 }
@@ -1025,6 +1060,9 @@ table.HELM_table th:last-child {
 .que.stack .maxima-string,
 .que.stack .maxima-list,
 .que.stack .equiv,
+.que.stack .equivinput,
+.que.stack .varmatrixinput,
+.que.stack .matrixtable,
 /* Question authoring form */
 #page-question-type-stack textarea#id_questionvariables,
 #page-question-type-stack input#id_variantsselectionseed,
@@ -1040,4 +1078,122 @@ table.HELM_table th:last-child {
 /* Properly display inversetrig values, in RTL mode */
 #page-question-type-stack #id_inversetrig option {
     unicode-bidi: plaintext;
+}
+
+/* Trees: https://codepen.io/ross-angus/pen/jwxMjL
+Copyright (c) 2022 by Ross Angus (https://codepen.io/ross-angus/pen/jwxMjL)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software
+and associated documentation files (the "Software"), to deal in the Software without restriction,
+including without limitation the rights to use, copy, modify, merge, publish, distribute,
+sublicense, and/or sell copies of the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or
+substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
+/* It's supposed to look like a tree diagram. */
+.tree,
+.tree ul,
+.tree li {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    position: relative;
+}
+
+.tree {
+    margin: 0 0 1em;
+    text-align: center;
+}
+.tree,
+.tree ul {
+    display: table;
+}
+.tree ul {
+    width: 100%;
+}
+.tree li {
+    display: table-cell;
+    padding: .5em 0;
+    vertical-align: top;
+}
+/* _________ */
+.tree li:before {
+    outline: solid 1px #666;
+    content: "";
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: 0;
+}
+.tree li:first-child:before {
+    left: 50%;
+}
+.tree li:last-child:before {
+    right: 50%;
+}
+.tree span.atom,
+.tree span.op,
+.tree span.cell,
+.tree code {
+    border: solid .1em #666;
+    border-radius: .2em;
+    display: inline-block;
+    margin: 0 .2em .5em;
+    padding: .2em .5em;
+    position: relative;
+}
+/* If the tree represents DOM structure. */
+.tree span.atom {
+    border-radius: .5em;
+    color: DarkRed;
+    background-color: LightCyan;
+}
+.tree code,
+.tree span.op {
+    border-radius: .2em;
+    color: Red;
+    background-color: LemonChiffon;
+}
+/* | */
+.tree ul:before,
+.tree span.atom:before,
+.tree span.op:before,
+.tree span.cell:before,
+.tree code:before {
+    outline: solid 1px #666;
+    content: "";
+    height: .5em;
+    left: 50%;
+    position: absolute;
+}
+.tree ul:before {
+    top: -.5em;
+}
+.tree span.atom:before,
+.tree span.op:before,
+.tree span.cell:before,
+.tree code:before {
+    top: -.55em;
+}
+/* The root node doesn't connect upwards. */
+.tree > li {
+    margin-top: 0;
+}
+.tree > li:before,
+.tree > li:after,
+.tree > li > span.atom:before,
+.tree > li > span.op:before,
+.tree > li > span.cell:before,
+.tree > li > code:before {
+    outline: none;
 }

@@ -30,7 +30,7 @@
  *     - StackMatrixInput
  *    objects of these types need to implement the two methods addEventHandlers and getValue().
  *
- * @package    qtype_stack
+ * @module     qtype_stack/input
  * @copyright  2018 The Open University
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
@@ -409,7 +409,7 @@ define([
             for (var i = 0; i < numrow; i++) {
                 values[i] = new Array(numcol);
             }
-	     container.querySelectorAll('input[type=text]').forEach(function(element) {
+            container.querySelectorAll('input[type=text]').forEach(function(element) {
                 if (element.name.slice(0, idPrefix.length + 5) !== idPrefix + '_sub_') {
                     return;
                 }
@@ -418,7 +418,7 @@ define([
             });
             return 'matrix([' + values.join('],[') + '])';
         };
-    };
+    }
 
     /**
      * Initialise all the inputs in a STACK question.

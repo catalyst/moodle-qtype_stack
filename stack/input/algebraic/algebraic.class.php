@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Stack.  If not, see <http://www.gnu.org/licenses/>.
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * A basic text-field input.
  *
@@ -30,7 +28,9 @@ class stack_algebraic_input extends stack_input {
         'rationalized' => false,
         'allowempty' => false,
         'nounits' => false,
-        'align' => 'left'
+        'align' => 'left',
+        'consolidatesubscripts' => false,
+        'checkvars' => 0
     );
 
     public function render(stack_input_state $state, $fieldname, $readonly, $tavalue) {
@@ -128,7 +128,7 @@ class stack_algebraic_input extends stack_input {
         }
         $cs = stack_ast_container::make_from_teacher_source($value, '', new stack_cas_security());
         $cs->set_nounify(0);
-        $value = $cs->get_inputform(true, 0, 0);
+        $value = $cs->get_inputform(true, 0, true);
         return stack_string('teacheranswershow', array('value' => '<code>'.$value.'</code>', 'display' => $display));
     }
 }

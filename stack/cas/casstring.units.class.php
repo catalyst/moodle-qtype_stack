@@ -83,6 +83,7 @@ class stack_cas_casstring_units {
         array('eV', '1.602177e-19*J', 'eV', 'Electron volt'),
         array('J', '(kg*m^2)/s^2', 'J', 'Joules'),
         array('W', '(kg*m^2)/s^3', 'W', 'Watts'),
+        array('Wh', '3600*(kg*m^2)/s^2', 'Wh', 'Watts hours'),
         array('A', 'A', 'A', 'Ampere'),
         array('ohm', '(kg*m^2)/(s^3*A^2)', '\Omega', 'ohm'),
         array('C', 's*A', 'C', 'Coulomb'),
@@ -103,7 +104,7 @@ class stack_cas_casstring_units {
         array('rad', 'rad', 'rad', 'radian'),
         array('sr', 'sr', 'sr', 'steradian'),
         array('K', 'K', 'K', 'Kelvin'),
-        array('VA', '(kg*m^2)/(s^3)', 'VA', 'volt-ampere'),
+        array('VA', 'VA', 'VA', 'volt-ampere'),
         array('eV', '1.602176634E-19*J', 'eV', 'electronvolt'),
         array('Ci', 'Ci', 'Ci', 'curie'),
         // @codingStandardsIgnoreStart

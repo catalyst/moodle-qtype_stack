@@ -79,7 +79,6 @@
 (defprop $texcolorplain tex-texcolorplain tex)
 
 ;; Changed log to ln, and other things.
-;; If changes are made here, then we also need to update arccos.lisp
 
 (mapc #'tex-setup
       '(
@@ -209,6 +208,7 @@
 
 ;; Change the display of integrals to be consistent with derivatives.
 ;; Chris Sangwin, 8/6/2015.
+(defprop %int tex-int tex)
 (defprop %integrate tex-int tex)
 (defun tex-int (x l r)
   (let ((s1 (tex (cadr x) nil nil 'mparen 'mparen)) ;;integran, at the request of the OU delims / & d
@@ -238,7 +238,7 @@
 ;; Powers of functions are displayed by tex as f^2(x), not f(x)^2.
 ;; This list is an exception, e.g. conjugate(x)^2.
 ;; We use this list because tex-mexpt is also defined in stacktex40.lisp for earlier versions of Maxima.
-(defvar tex-mexpt-fnlist '(%sum %product %derivative %integrate %at $conjugate $texsub $lg $logbase
+(defvar tex-mexpt-fnlist '(%sum %product %derivative %integrate %at $conjugate $texsub $lg $logbase %sqrt
                                          %lsum %limit $pderivop $#pm#))
 
 ;; insert left-angle-brackets for mncexpt. a^<n> is how a^^n looks.
@@ -274,7 +274,7 @@
                      (setq l (tex `((mexpt) ,f ,expon) l nil 'mparen 'mparen))
                      (if (and (null (cdr bascdr))
                               (eq (get f 'tex) 'tex-prefix))
-                         (setq r (tex (car bascdr) nil r f 'mparen))
+                         (setq r (tex (cons '(mprogn) bascdr) nil r f 'mparen))
                          (setq r (tex (cons '(mprogn) bascdr) nil r 'mparen 'mparen))))
                     (t nil))))) ; won't doit. fall through
       (t (setq l (cond ((or ($bfloatp (cadr x))
@@ -456,3 +456,18 @@
 
 (defprop $true  "\\mathbf{!BOOLTRUE!}"  texword)
 (defprop $false "\\mathbf{!BOOLFALSE!}" texword)
+
+
+;; *************************************************************************************************
+;; Added 20 Feb 2022.
+;; Remove %_C and %_E for display purposes.  The Maxima function %_ce_rem is defined in utils.mac
+
+(defmfun $tex1 (x) (reduce #'strcat (tex ($%_ce_rem x) nil nil 'mparen 'mparen)))
+
+;; *************************************************************************************************
+;; Added 30 May 2022.
+;; Allow Maxima to interigate the texword database directly, for words or function names.
+;; Copied directly from tex-atom.
+(defmfun $get_texword (x) (or (get x 'texword) (get (get x 'reversealias) 'texword)))
+
+(defmfun $get_texsym (x) (car (or (get x 'texsym) (get x 'strsym) (get x 'dissym) (stripdollar x))))

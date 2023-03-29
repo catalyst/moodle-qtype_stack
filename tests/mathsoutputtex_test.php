@@ -14,6 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Stack.  If not, see <http://www.gnu.org/licenses/>.
 
+namespace qtype_stack;
+
+use qtype_stack_testcase;
+use stack_maths;
+use stack_utils;
+
 defined('MOODLE_INTERNAL') || die();
 
 require_once(__DIR__ . '/../stack/mathsoutput/mathsoutput.class.php');
@@ -26,8 +32,9 @@ require_once(__DIR__ . '/../doc/docslib.php');
 
 /**
  * @group qtype_stack
+ * @covers \stack_maths_output_tex
  */
-class stack_maths_tex_test extends advanced_testcase {
+class mathsoutputtex_test extends qtype_stack_testcase {
 
     public function test_tex_rendering() {
         $this->resetAfterTest();
@@ -38,12 +45,12 @@ class stack_maths_tex_test extends advanced_testcase {
         // Test language string.
         // The <span class="MathJax_Preview"> bit is something that got added in
         // Moodle 2.8, so match it optionally.
-        $this->assertRegExp('~^Your answer needs to be a single fraction of the form ' .
+        $this->assertMatchesRegularExpression('~^Your answer needs to be a single fraction of the form ' .
                 '(<span class="MathJax_Preview">)?<a .*alt=" \{a\}\\\\over\{b\} ".*</(a|script)> \. ~',
                 stack_string('ATSingleFrac_part'));
 
         // Test docs - make sure maths inside <code> is not rendered.
-        $this->assertRegExp('~^<p><code>\\\\\(x\^2\\\\\)</code> gives (<span class="MathJax_Preview">)?'
+        $this->assertMatchesRegularExpression('~^<p><code>\\\\\(x\^2\\\\\)</code> gives (<span class="MathJax_Preview">)?'
                 .'<a .*alt="x\^2".*</(a|script)> \.</p>\n$~',
                 stack_docs_render_markdown('<code>\(x^2\)</code> gives \(x^2\).'));
 

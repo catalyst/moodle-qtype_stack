@@ -14,6 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Stack.  If not, see <http://www.gnu.org/licenses/>.
 
+namespace qtype_stack;
+
+use qtype_stack_testcase;
+use stack_ast_container;
+use stack_cas_keyval;
+use stack_cas_security;
+use stack_cas_session2;
+
 defined('MOODLE_INTERNAL') || die();
 
 require_once(__DIR__ . '/../locallib.php');
@@ -25,8 +33,9 @@ require_once(__DIR__ . '/../stack/cas/keyval.class.php');
 
 /**
  * @group qtype_stack
+ * @covers \stack_cas_keyval
  */
-class stack_cas_keyval_test extends qtype_stack_testcase {
+class caskeyval_test extends qtype_stack_testcase {
 
     public function get_valid($s, $val, $session) {
         $kv = new stack_cas_keyval($s, null, 123);
@@ -138,7 +147,7 @@ class stack_cas_keyval_test extends qtype_stack_testcase {
         $kv = new stack_cas_keyval($tests);
         $this->assertTrue($kv->get_valid());
         $kv->instantiate();
-        foreach ($kv->get_session() as $cs) {
+        foreach ($kv->get_session()->get_session() as $cs) {
             $expect = (strpos($cs->get_key(), 't') === 0) ? 'true' : 'false';
             $this->assertEquals($expect, $cs->get_value());
         }
@@ -148,9 +157,6 @@ class stack_cas_keyval_test extends qtype_stack_testcase {
         $s = 'a:x^2; ans1:a+1; ta:a^2';
         $kv = new stack_cas_keyval($s, null, 123);
         $this->assertFalse($kv->get_valid(array('ans1')));
-        $errs = array('You may not use input names as variables.  ' .
-                'You have tried to define <code>ans1</code>');
-        $this->assertEquals($errs, $kv->get_errors());
     }
 
     public function test_remove_comment() {
@@ -167,6 +173,12 @@ class stack_cas_keyval_test extends qtype_stack_testcase {
         foreach ($session as $key => $statement) {
             $this->assertEquals($expected[$key], $statement->get_value());
         }
+    }
+
+    public function test_remove_comment_hanging() {
+        $at1 = new stack_cas_keyval("a:1\n /* This is an open comment \n b:2\n \n c:3^2", null, 123);
+        $this->assertFalse($at1->get_valid());
+        $at1->instantiate();
     }
 
     public function test_multiline_input() {
@@ -197,6 +209,29 @@ class stack_cas_keyval_test extends qtype_stack_testcase {
         $this->assertEquals($expected, $s->get_keyval_representation(true));
     }
 
+    public function test_ampersand_in_strings() {
+        $tests = 'k1:"~@r";n1:2*4;';
+
+        $kv = new stack_cas_keyval($tests);
+        $this->assertTrue($kv->get_valid());
+        $kv->instantiate();
+        $s = $kv->get_session();
+        $expected = "k1:\"~@r\";\nn1:2*4;";
+        $this->assertEquals($expected, $s->get_keyval_representation());
+
+        $expected = "k1:\"~@r\";\nn1:8;";
+        $this->assertEquals($expected, $s->get_keyval_representation(true));
+    }
+
+    public function test_ampersand_outside_strings() {
+        $tests = 'k1:u@x;n1:2*4;';
+
+        $kv = new stack_cas_keyval($tests);
+        $this->assertFalse($kv->get_valid());
+        $expected = array('The characters @, $ and \ are not allowed in CAS input.');
+        $this->assertEquals($expected, $kv->get_errors());
+    }
+
     public function test_needs_mbstring() {
 
         $tests = "x : rand([1,2,3])\ny : rand([2,3,4])\nA : matrix([x,2,1],[3,4,2],[1,y,5])\n" .
@@ -219,6 +254,57 @@ class stack_cas_keyval_test extends qtype_stack_testcase {
                     "[a31-a31/a11*a11,a32-a31/a11*a12,a33-a31/a11*a13]);\n" .
                     "C:B-matrix([0,0,0],[0,0,0],[0,B[3,2]/B[2,2]*B[2,2],B[3,2]/B[2,2]*B[2,3]]);\n" .
                     "coef1:a21/a11;\ncoef2:a31/a11;\ncoef3:B[3,2]/B[2,2];";
+        $this->assertEquals($expected, $s->get_keyval_representation());
+    }
+
+    public function test_usage() {
+        // Notes, for global variable usage:
+        // The ev case where both : and = work as the definition of values.
+        // The block case where some variables may be listed as locals.
+        // The function definition case where the arguments are locals.
+        // The multiple assing case where more than one is written.
+        // Evaluation-flags.
+        // By refrence function like push.
+        $kv = new stack_cas_keyval("foo:ev(bar,x:y,z=y);" .
+            "f(x,y):=block([bar],bar:1+x,[y,x]);" .
+            "g(x,y):=(x:1+x,[y,x]:[x,y]);" .
+            "[baz,T]:f(x,y);" .
+            "g(1,2),x=3,y:4" .
+            "push(x,V);" .
+            "block([bar],push(x,bar));");
+        $this->assertTrue($kv->get_valid());
+        $usage = $kv->get_variable_usage();
+        // Variables x, y, z, and bar are never globally written.
+        $this->assertFalse(isset($usage['write']['x']));
+        $this->assertFalse(isset($usage['write']['y']));
+        $this->assertFalse(isset($usage['write']['z']));
+        $this->assertFalse(isset($usage['write']['bar']));
+        // Functions foo, baz, and T are being written globally.
+        $this->assertTrue(isset($usage['write']['foo']));
+        $this->assertTrue(isset($usage['write']['baz']));
+        $this->assertTrue(isset($usage['write']['T']));
+        $this->assertTrue(isset($usage['write']['V']));
+    }
+
+    public function test_unclear_subs() {
+        $tests = 'v:2;trig:[sin,cos][v];sub:[(sin(x))^2=1-(cos(x))^2,(cos(x))^2=1-(sin(x))^2][v];f:(trig(x))^n;'
+            . 'df:diff(f,x);df_simp:(subst(sub,df));ta1:expand(df_simp);';
+
+        $kv = new stack_cas_keyval($tests);
+        // This changed since we check Maxima-side.
+        $this->assertTrue($kv->get_valid());
+        $expected = array();
+        $this->assertEquals($expected, $kv->get_errors());
+
+        $kv->instantiate();
+        $s = $kv->get_session();
+        $expected = "v:2;\n" .
+                    "trig:[sin,cos][v];\n" .
+                    "sub:[(sin(x))^2 = 1-(cos(x))^2,(cos(x))^2 = 1-(sin(x))^2][v];\n" .
+                    "f:(trig(x))^n;\n" .
+                    "df:diff(f,x);\n" .
+                    "df_simp:(subst(sub,df));\n" .
+                    "ta1:expand(df_simp);";
         $this->assertEquals($expected, $s->get_keyval_representation());
     }
 }

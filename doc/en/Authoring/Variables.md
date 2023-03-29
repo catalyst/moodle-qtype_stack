@@ -54,11 +54,26 @@ If the following commands appear within the question variables they will be avai
 
 * `orderless` and `ordergreat`.  These commands may only appear once each in any question.
 * `assume` and `declare`.
-* `texput`.  Only single texput commands are gathered into the context variables, and not other functions defined in the question variables.  So, `texput(blob, "\\diamond")` is fine, but passing a function to texput to display more complex output is not currently supported.
+* `texput`, see notes directly below.
+
+This collection of special variables are called "context variables".
+
+Only single texput commands are gathered into the context variables.  You cannot use other variables or other functions defined in the question variables.  So, `texput(blob, "\\diamond")` is fine, but passing a function to texput to display more complex output is not currently supported.
 
 For example, to redefine how the logarithm is displayed, use `texput(log, "\\log ", prefix);`.
 
-(This feature is only available after STACK 4.3.7).
+It is possible to use an unnamed `lambda` function.  E.g. if you have a function `tup` then
+
+    texput(tup,  lambda([z], block([a,b], [a,b]:args(z), sconcat("\\left[",tex1(a),",",tex1(b),"\\right)")))); 
+
+will display `tup(a,b)` as \( \left[a,b\right) \).
+
+As a more complicated example, to typeset `u(A_k,k,1,inf)` as \({\bigcup_{k = 1}^{\infty } {A}_{k}}\) you can use the following:
+
+    texput(u,lambda([ex],if length(ex)<4 then return("\\bigcup_{?=?}^{?} ? ") else
+        sconcat("\\bigcup_{" ,tex1(second(ex)), " = ", tex1(third(ex)), "}^{", tex1(fourth(ex)), "} ", tex1(first(ex)))));
+
+Notice in this example how we check the length of the arguments supplied to the (inert) function `u`.  If there are fewer than the required number of arguments then this texput function returns something sensible.  Without this clause you get errors, which would be unhelpful to a student trying to type this in.
 
 ## Feedback variables {#Feedback_variables}
 

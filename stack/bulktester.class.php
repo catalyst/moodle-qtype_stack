@@ -21,7 +21,10 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-class stack_bulk_tester  {
+require_once(__DIR__ . '/../vle_specific.php');
+require_once(__DIR__ . '/../../../engine/bank.php');
+
+class stack_bulk_tester {
 
     /**
      * Get all the contexts that contain at least one STACK question, with a
@@ -32,15 +35,33 @@ class stack_bulk_tester  {
     public function get_stack_questions_by_context() {
         global $DB;
 
+        // Earlier than Moodle 4.0.
+        if (stack_determine_moodle_version() < 400) {
+            return $DB->get_records_sql_menu("
+                SELECT ctx.id, COUNT(q.id) AS numstackquestions
+                  FROM {context} ctx
+                  JOIN {question_categories} qc ON qc.contextid = ctx.id
+                  JOIN {question} q ON q.category = qc.id
+                WHERE q.qtype = 'stack'
+                GROUP BY ctx.id, ctx.path
+                ORDER BY ctx.path");
+        }
+
         return $DB->get_records_sql_menu("
-            SELECT ctx.id, COUNT(q.id) AS numstackquestions
-              FROM {context} ctx
-              JOIN {question_categories} qc ON qc.contextid = ctx.id
-              JOIN {question} q ON q.category = qc.id
-             WHERE q.qtype = 'stack'
-          GROUP BY ctx.id, ctx.path
-          ORDER BY ctx.path
-        ");
+                SELECT ctx.id, COUNT(q.id) AS numstackquestions
+                  FROM {context} ctx
+                  JOIN {question_categories} qc ON qc.contextid = ctx.id
+                  JOIN {question_bank_entries} qb ON qb.questioncategoryid = qc.id
+                  JOIN {question_versions} qv ON qv.questionbankentryid = qb.id
+                  JOIN {question} q ON q.id = qv.questionid
+                WHERE q.qtype = 'stack'
+                AND qv.version = (SELECT MAX(v.version)
+                                  FROM {question_versions} v
+                                  JOIN {question_bank_entries} be
+                                    ON be.id = v.questionbankentryid
+                                 WHERE be.id = qb.id)
+                GROUP BY ctx.id, ctx.path
+                ORDER BY ctx.path");
     }
 
     /**
@@ -51,8 +72,28 @@ class stack_bulk_tester  {
     public function get_stack_questions($categoryid) {
         global $DB;
 
-        return $DB->get_records_menu('question',
+        // Earlier than Moodle 4.0.
+        if (stack_determine_moodle_version() < 400) {
+            return $DB->get_records_menu('question',
                 ['category' => $categoryid, 'qtype' => 'stack'], 'name', 'id, name');
+        }
+
+        // See question/engine/bank.php around line 500, but this does not return the last version.
+        $qcparams['readystatus'] = \core_question\local\bank\question_version_status::QUESTION_STATUS_READY;
+        return $DB->get_records_sql_menu("
+                SELECT q.id, q.name AS id2
+                FROM {question} q
+                JOIN {question_versions} qv ON qv.questionid = q.id
+                JOIN {question_bank_entries} qbe ON qbe.id = qv.questionbankentryid
+                WHERE qbe.questioncategoryid = {$categoryid}
+                       AND q.parent = 0
+                       AND qv.status = :readystatus
+                       AND q.qtype = 'stack'
+                       AND qv.version = (SELECT MAX(v.version)
+                                         FROM {question_versions} v
+                                         JOIN {question_bank_entries} be
+                                         ON be.id = v.questionbankentryid
+                                         WHERE be.id = qbe.id)", $qcparams);
     }
 
     /**
@@ -73,8 +114,11 @@ class stack_bulk_tester  {
             $skippreviouspasses = false) {
         global $DB, $OUTPUT;
 
-        // Load the necessary data.
-        $categories = question_category_options(array($context));
+        if (stack_determine_moodle_version() < 400) {
+            $categories = question_category_options(array($context));
+        } else {
+            $categories = qbank_managecategories\helper::question_category_options(array($context));
+        }
         $categories = reset($categories);
         $questiontestsurl = new moodle_url('/question/type/stack/questiontestrun.php');
         if ($context->contextlevel == CONTEXT_COURSE) {
@@ -117,6 +161,7 @@ class stack_bulk_tester  {
             } else {
                 $questionids = $this->get_stack_questions($categoryid);
             }
+
             if (!$questionids) {
                 continue;
             }
@@ -140,7 +185,16 @@ class stack_bulk_tester  {
             }
 
             foreach ($questionids as $questionid => $name) {
-                $question = question_bank::load_question($questionid);
+                try {
+                    $question = question_bank::load_question($questionid);
+                } catch (Exception $e) {
+                    $message = $questionid . ', ' . format_string($name) .
+                        ': ' . stack_string('errors') . ' : ' . $e;
+                    $allpassed = false;
+                    $failingupgrade[] = $message;
+                    continue;
+                }
+
                 if ($outputmode == 'web') {
                     $questionname = format_string($name);
                     $questionnamelink = html_writer::link(new moodle_url($questiontestsurl,
@@ -152,6 +206,8 @@ class stack_bulk_tester  {
                     $qdotoutput = 0;
                 }
 
+                // At this point we have no question context and so we can't possibly correctly evaluate URLs.
+                $question->castextprocessor = new castext2_qa_processor(new stack_outofcontext_process());
                 $upgradeerrors = $question->validate_against_stackversion();
                 if ($upgradeerrors != '') {
                     if ($outputmode == 'web') {
@@ -241,7 +297,12 @@ class stack_bulk_tester  {
                                 $qdotoutput = 0;
                             }
                         }
-                        $this->qtype_stack_seed_cache($question, $seed);
+                        try {
+                            $this->qtype_stack_seed_cache($question, $seed);
+                        } catch (stack_exception $e) {
+                            $ok = false;
+                            $message = stack_string('errors') . ' : ' . $e;
+                        }
                         $previewurl->param('seed', $seed);
                         if ($outputmode == 'web') {
                             $questionnamelink = html_writer::link($previewurl, stack_string('seedx', $seed));
@@ -317,9 +378,36 @@ class stack_bulk_tester  {
         $ok = ($fails === 0);
 
         // These lines are to seed the cache and to generate any runtime errors.
-        $notused = $question->get_question_summary();
+        $slot = $quba->add_question($question, $question->defaultmark);
+        try {
+            $quba->start_question($slot);
+        } catch (stack_exception $e) {
+            return array(false, "Attempting to start the question threw an exception!");
+        }
+
+        // Prepare the display options.
+        $options = new question_display_options();
+        $options->readonly = true;
+        $options->flags = question_display_options::HIDDEN;
+        $options->suppressruntestslink = true;
+        $question->castextprocessor = new castext2_qa_processor($quba->get_question_attempt($slot));
+
+        // Create the question text, question note and worked solutions.
+        // This involves instantiation, which seeds the CAS cache in the cases when we have no tests.
+        $renderquestion = $quba->render_question($slot, $options);
+        $questionote = $question->get_question_summary();
         $generalfeedback = $question->get_generalfeedback_castext();
-        $notused = $generalfeedback->get_display_castext();
+
+        $generalfeedback->get_rendered($question->castextprocessor);
+        if ($generalfeedback->get_errors() != '') {
+            $ok = false;
+            $s = stack_string('stackInstall_testsuite_errors') . '  ' .
+                stack_string('generalfeedback') . ': ' . $generalfeedback->get_errors();
+            if ($outputmode == 'web') {
+                $s = html_writer::tag('br', $s);
+            }
+            $message .= $s;
+        }
 
         if (!empty($question->runtimeerrors)) {
             $ok = false;
@@ -373,7 +461,11 @@ class stack_bulk_tester  {
         }
 
         $slot = $quba->add_question($qu, $qu->defaultmark);
-        $quba->start_question($slot);
+        try {
+            $quba->start_question($slot);
+        } catch (stack_exception $e) {
+            return false;
+        }
 
         // Prepare the display options.
         $options = new question_display_options();
@@ -385,8 +477,14 @@ class stack_bulk_tester  {
         // This involves instantiation, which seeds the CAS cache in the cases when we have no tests.
         $renderquestion = $quba->render_question($slot, $options);
         $workedsolution = $qu->get_generalfeedback_castext();
-        $workedsolution->get_display_castext();
+        $workedsolution->get_rendered();
         $questionote = $qu->get_question_summary();
+
+        // As we cloned the question any and all updates to the cache will not sync.
+        // So let's do that ourselves.
+        if ($qu->compiledcache !== $question->compiledcache) {
+            $question->compiledcache = $qu->compiledcache;
+        }
     }
 
     /**

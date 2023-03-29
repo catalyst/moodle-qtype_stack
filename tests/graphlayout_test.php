@@ -14,6 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Stack.  If not, see <http://www.gnu.org/licenses/>.
 
+namespace qtype_stack;
+
+use stack_abstract_graph;
+use basic_testcase;
+
 defined('MOODLE_INTERNAL') || die();
 
 require_once(__DIR__ . '/../stack/graphlayout/graph.php');
@@ -25,8 +30,9 @@ require_once(__DIR__ . '/../stack/graphlayout/graph.php');
 
 /**
  * @group qtype_stack
+ * @covers \stack_abstract_graph
  */
-class stack_abstract_graph_test extends basic_testcase {
+class graphlayout_test extends basic_testcase {
 
     /**
      * This graph has 4 nodes and should look like:
@@ -137,7 +143,7 @@ class stack_abstract_graph_test extends basic_testcase {
      * This graph has a link to a non-existent node. We verify that throws an exception.
      */
     public function test_missing_node() {
-        $this->expectException(coding_exception::class);
+        $this->expectException(\coding_exception::class);
         $graph = new stack_abstract_graph();
         $graph->add_node(1, null, 2, '=1', '=0');
 
