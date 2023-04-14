@@ -62,10 +62,10 @@ jobs:
         run: |
           maxima="${{ (matrix.maxima == 'SBCL' && 'sbcl') || 'gcl' }}"
           wget http://mirrors.kernel.org/ubuntu/pool/main/r/readline/libreadline7_7.0-3_amd64.deb \
-               https://sourceforge.net/projects/maxima/files/Maxima-Linux/5.42.2-Linux/maxima-common_5.42.2-1_all.deb \
-               https://sourceforge.net/projects/maxima/files/Maxima-Linux/5.42.2-Linux/maxima-${maxima}_5.42.2-1_amd64.deb
-          sudo apt-get install libtinfo5
-          sudo dpkg -i libreadline7_7.0-3_amd64.deb maxima-common_5.42.2-1_all.deb maxima-${maxima}_5.42.2-1_amd64.deb
+               https://sourceforge.net/projects/maxima/files/Maxima-Linux/5.41.0-Linux/maxima-common_5.41.0-6_all.deb \
+               https://sourceforge.net/projects/maxima/files/Maxima-Linux/5.41.0-Linux/maxima-${maxima}_5.41.0-6_amd64.deb
+          sudo apt-get install libtinfo5 clisp
+          sudo dpkg -i libreadline7_7.0-3_amd64.deb maxima-common_5.41.0-6_all.deb maxima-${maxima}_5.41.0-6_amd64.deb
 
           echo "diff(x^2,x);" | maxima
           echo "build_info();" | maxima
@@ -90,7 +90,7 @@ jobs:
           echo $(cd ci/vendor/bin; pwd) >> $GITHUB_PATH
           sudo locale-gen en_AU.UTF-8
           echo "NVM_DIR=$HOME/.nvm" >> $GITHUB_ENV
- 
+
       - name: Install moodle-plugin-ci
         run: |
           moodle-plugin-ci add-plugin maths/moodle-qbehaviour_dfexplicitvaildate
@@ -99,7 +99,7 @@ jobs:
 
           moodle-plugin-ci install --plugin ./plugin --db-host=127.0.0.1
 
-          moodle-plugin-ci add-config 'define("QTYPE_STACK_TEST_CONFIG_MAXIMAVERSION",       "5.42.2");'
+          moodle-plugin-ci add-config 'define("QTYPE_STACK_TEST_CONFIG_MAXIMAVERSION",       "5.41.0");'
           moodle-plugin-ci add-config 'define("QTYPE_STACK_TEST_CONFIG_MAXIMACOMMAND",       "maxima");'
           moodle-plugin-ci add-config 'define("QTYPE_STACK_TEST_CONFIG_MAXIMACOMMANDOPT",    "timeout --kill-after=10s 10s ${{ github.workspace }}/maxima_opt_auto -eval '\''(cl-user::run)'\''");'
           moodle-plugin-ci add-config 'define("QTYPE_STACK_TEST_CONFIG_MAXIMACOMMANDSERVER", "http://pool.home:8080/MaximaPool/MaximaPool");'
@@ -112,10 +112,10 @@ jobs:
           moodle-plugin-ci add-config 'define("QTYPE_STACK_TEST_CONFIG_CASDEBUGGING",        "0");'
 
           #cat ${{ github.workspace }}/moodle/config.php
- 
+
           cp ${{ github.workspace }}/moodledata/phpu_moodledata/stack/maxima_opt_auto ${{ github.workspace }}/maxima_opt_auto
           # Try a command on the command line.
-          # echo "1+1; quit();" | timeout --kill-after=10s 10s ${{ github.workspace }}/maxima_opt_auto -eval '(cl-user::run)' 
+          # echo "1+1; quit();" | timeout --kill-after=10s 10s ${{ github.workspace }}/maxima_opt_auto -eval '(cl-user::run)'
 
 
         env:
