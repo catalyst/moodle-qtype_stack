@@ -1,46 +1,4 @@
-/*
-    JSXGraph 1.4.4
-
-    Copyright 2008-2022
-        Matthias Ehmann,
-        Michael Gerhaeuser,
-        Carsten Miller,
-        Bianca Valentin,
-        Andreas Walter,
-        Alfred Wassermann,
-        Peter Wilfahrt
-
-    This file is part of JSXGraph.
-
-    JSXGraph is free software dual licensed under the GNU LGPL or MIT License.
-
-    You can redistribute it and/or modify it under the terms of the
-
-      * GNU Lesser General Public License as published by
-        the Free Software Foundation, either version 3 of the License, or
-        (at your option) any later version
-      OR
-      * MIT License: https://github.com/jsxgraph/jsxgraph/blob/master/LICENSE.MIT
-
-    JSXGraph is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details.
-
-    You should have received a copy of the GNU Lesser General Public License and
-    the MIT License along with JSXGraph. If not, see <https://www.gnu.org/licenses/>
-    and <https://opensource.org/licenses/MIT/>.
-*/
-
 define(function () {
-
-/**
- * @license almond 0.3.3 Copyright jQuery Foundation and other contributors.
- * Released under MIT license, http://github.com/requirejs/almond/LICENSE
- */
-//Going sloppy to avoid 'use strict' string cost, but strict practices should
-//be followed.
-/*global setTimeout: false */
 
 var requirejs, require, define;
 (function (undef) {
@@ -869,7 +827,7 @@ define('base/constants',['jxg'], function (JXG) {
 
     var major = 1,
         minor = 4,
-        patch = 4,
+        patch = 6,
         add = '', //'dev'
         version = major + '.' + minor + '.' + patch + (add ? '-' + add : ''),
         constants;
@@ -938,7 +896,13 @@ define('base/constants',['jxg'], function (JXG) {
         OBJECT_TYPE_BUTTON: 29,
         OBJECT_TYPE_TRANSFORMATION: 30,
         OBJECT_TYPE_FOREIGNOBJECT: 31,
+
         OBJECT_TYPE_VIEW3D: 32,
+        OBJECT_TYPE_POINT3D: 33,
+        OBJECT_TYPE_LINE3D: 34,
+        OBJECT_TYPE_PLANE3D: 35,
+        OBJECT_TYPE_CURVE3D: 36,
+        OBJECT_TYPE_SURFACE3D: 37,
 
         // IMPORTANT:
         // ----------
@@ -954,6 +918,7 @@ define('base/constants',['jxg'], function (JXG) {
         OBJECT_CLASS_AREA: 5,
         OBJECT_CLASS_OTHER: 6,
         OBJECT_CLASS_TEXT: 7,
+        OBJECT_CLASS_3D: 8,
 
         // SketchReader constants
         GENTYPE_ABC: 1, // unused
@@ -1217,8 +1182,16 @@ define('utils/type',[
          * @returns {Boolean} True, if v is of type JXG.Point.
          */
         isPoint: function (v) {
-            if (v !== null && typeof v === 'object') {
+            if (v !== null && typeof v === 'object' && this.exists(v.elementClass)) {
                 return (v.elementClass === Const.OBJECT_CLASS_POINT);
+            }
+
+            return false;
+        },
+
+        isPoint3D: function (v) {
+            if (v !== null && typeof v === 'object' && this.exists(v.elType)) {
+                return (v.elType === 'point3d');
             }
 
             return false;
@@ -1464,6 +1437,71 @@ define('utils/type',[
                 }
 
                 if (!this.isPoint(points[i])) {
+                    return false;
+                }
+            }
+
+            return points;
+        },
+
+        /**
+         *  Test if the parents array contains existing points. If instead parents contains coordinate arrays or
+         *  function returning coordinate arrays
+         *  free points with these coordinates are created.
+         *
+         * @param {JXG.View3D} view View3D object
+         * @param {Array} parents Array containing parent elements for a new object. This array may contain
+         *    <ul>
+         *      <li> {@link JXG.Point3D} objects
+         *      <li> {@link JXG.GeometryElement#name} of {@link JXG.Point3D} objects
+         *      <li> {@link JXG.GeometryElement#id} of {@link JXG.Point3D} objects
+         *      <li> Coordinates of 3D points given as array of numbers of length three, e.g. [2, 3, 1].
+         *      <li> Coordinates of 3D points given as array of functions of length three. Each function returns one coordinate, e.g.
+         *           [function(){ return 2; }, function(){ return 3; }, function(){ return 1; }]
+         *      <li> Function returning coordinates, e.g. function() { return [2, 3, 1]; }
+         *    </ul>
+         *  In the last three cases a new 3D point will be created.
+         * @param {String} attrClass Main attribute class of newly created 3D points, see {@link JXG#copyAttributes}
+         * @param {Array} attrArray List of subtype attributes for the newly created 3D points. The list of subtypes is mapped to the list of new 3D points.
+         * @returns {Array} List of newly created {@link JXG.Point3D} elements or false if not all returned elements are 3D points.
+         */
+         providePoints3D: function (view, parents, attributes, attrClass, attrArray) {
+            var i, j,
+                len,
+                lenAttr = 0,
+                points = [], attr, val;
+
+            if (!this.isArray(parents)) {
+                parents = [parents];
+            }
+            len = parents.length;
+            if (this.exists(attrArray)) {
+                lenAttr = attrArray.length;
+            }
+            if (lenAttr === 0) {
+                attr = this.copyAttributes(attributes, view.board.options, attrClass);
+            }
+
+            for (i = 0; i < len; ++i) {
+                if (lenAttr > 0) {
+                    j = Math.min(i, lenAttr - 1);
+                    attr = this.copyAttributes(attributes, view.board.options, attrClass, attrArray[j]);
+                }
+
+                if (this.isArray(parents[i]) && parents[i].length > 1) {
+                    points.push(view.create('point3d', parents[i], attr));
+                    points[points.length - 1]._is_new = true;
+                } else if (this.isFunction(parents[i])) {
+                    val = parents[i]();
+                    if (this.isArray(val) && (val.length > 1)) {
+                        points.push(view.create('point3d', [parents[i]], attr));
+                        points[points.length - 1]._is_new = true;
+                    }
+                } else {
+                    points.push(view.select(parents[i]));
+                }
+
+                if (!this.isPoint3D(points[i])) {
                     return false;
                 }
             }
@@ -1808,7 +1846,7 @@ define('utils/type',[
             var x = Math.abs(val),
                 str;
 
-            if (x > 0.1) {
+            if (x >= 0.1) {
                 str = this.toFixed(val, 2);
             } else if (x >= 0.01) {
                 str = this.toFixed(val, 4);
@@ -3179,70 +3217,50 @@ define('utils/env',['jxg', 'utils/type'], function (JXG, Type) {
         },
 
         /**
-         * Calculate the scale factor and vertical shift for the JSXGraph div
-         * in full screen mode.
-         *
-         * @param {Object} obj Reference to a DOM node.
-         * @returns Object {scale: number, vshift: number}
-         * @see JXG.Board#fullscreenListener
-         * @private
-         */
-        _getScaleFactors: function (node) {
-            var width = node.getBoundingClientRect().width,
-                height = node.getBoundingClientRect().height,
-
-                // Determine the maximum scale factor.
-                r_w = window.screen.width / width,
-                r_h = window.screen.height / height,
-
-                // Determine the vertical shift to place the div in the center of the screen
-                vshift = (window.screen.height - height) * 0.5,
-
-                // Scaling factor: if not supplied, it's taken as large as possible
-                scale = Math.min(r_w, r_h);
-
-            // Adapt vshift and scale for landscape on tablets
-            if (window.matchMedia && window.matchMedia('(orientation:landscape)').matches &&
-                window.screen.width < window.screen.height) {
-                // Landscape on iOS: it returns 'landscape', but still width < height.
-                r_w = window.screen.height / width;
-                r_h = window.screen.width / height;
-                scale = Math.min(r_w, r_h);
-                vshift = (window.screen.width - height) * 0.5;
-            }
-            scale *= 0.85;
-
-            return { scale: scale, vshift: vshift, width: width };
-        },
-
-        /**
          * Scale and vertically shift a DOM element (usually a JSXGraph div)
          * inside of a parent DOM
          * element which is set to fullscreen.
          * This is realized with a CSS transformation.
-         *          *
+         *
          * @param  {String} wrap_id  id of the parent DOM element which is in fullscreen mode
          * @param  {String} inner_id id of the DOM element which is scaled and shifted
-         * @param  {Number} scale    Scaling factor
-         * @param  {Number} vshift   Vertical shift (in pixel)
+         * @param  {Object} doc      document object or shadow root
          *
          * @private
          * @see JXG.Board#toFullscreen
          * @see JXG.Board#fullscreenListener
          *
          */
-        scaleJSXGraphDiv: function (wrap_id, inner_id, scale, vshift) {
-            var len = document.styleSheets.length, style,
+         scaleJSXGraphDiv: function (wrap_id, inner_id, doc) {
+            var len = doc.styleSheets.length, style, rule, w, h, b, wi, hi, bi,
+                scale_l, vshift_l, // scale_p, vshift_p,
+                f = 0.85,
+                rule_inner_l, // rule_inner_p,
 
                 pseudo_keys = [':fullscreen', ':-webkit-full-screen', ':-moz-full-screen', ':-ms-fullscreen'],
                 len_pseudo = pseudo_keys.length, i,
 
-                // CSS rules to center the inner div horizontally and vertically.
-                rule_inner = '{margin:0 auto;transform:matrix(' + scale + ',0,0,' + scale + ',0,' + vshift + ');}',
-
                 // A previously installed CSS rule to center the JSXGraph div has to
                 // be searched and removed again.
                 regex = new RegExp('.*#' + wrap_id + ':.*full.*screen.*#' + inner_id + '.*auto;.*transform:.*matrix');
+
+            b = doc.getElementById(wrap_id).getBoundingClientRect();
+            h = b.height;
+            w = b.width;
+
+            bi = doc.getElementById(inner_id).getBoundingClientRect();
+            hi = bi.height;
+            wi = bi.width;
+
+            if (wi / hi >= w / h) {
+                scale_l = f * w / wi;
+            } else {
+                scale_l = f * h / hi;
+            }
+            vshift_l = (h - hi) * 0.5;
+
+            // CSS rules to center the inner div horizontally and vertically.
+            rule_inner_l = '{margin:0 auto;transform:matrix(' + scale_l + ',0,0,' + scale_l + ',0,' + vshift_l + ');}';
 
             if (len === 0) {
                 // In case there is not a single CSS rule defined at all.
@@ -3250,22 +3268,24 @@ define('utils/env',['jxg', 'utils/type'], function (JXG, Type) {
                 // WebKit hack :(
                 style.appendChild(document.createTextNode(''));
                 // Add the <style> element to the page
-                document.body.appendChild(style);
-                len = document.styleSheets.length;
+                doc.appendChild(style);
+                len = doc.styleSheets.length;
             }
 
             // Remove a previously installed CSS rule.
-            if (document.styleSheets[len - 1].cssRules.length > 0 &&
-                regex.test(document.styleSheets[len - 1].cssRules[0].cssText) &&
-                document.styleSheets[len - 1].deleteRule) {
-
-                document.styleSheets[len - 1].deleteRule(0);
+            if (doc.styleSheets[len - 1].cssRules.length > 0 &&
+                regex.test(doc.styleSheets[len - 1].cssRules[0].cssText) &&
+                doc.styleSheets[len - 1].deleteRule) {
+                    doc.styleSheets[len - 1].deleteRule(0);
             }
 
             // Install a CSS rule to center the JSXGraph div at the first position of the list.
             for (i = 0; i < len_pseudo; i++) {
                 try {
-                    document.styleSheets[len - 1].insertRule('#' + wrap_id + pseudo_keys[i] + ' #' + inner_id + rule_inner, 0);
+                    rule = '#' + wrap_id + pseudo_keys[i] + ' #' + inner_id + rule_inner_l;
+                    // rule = '@media all and (orientation:landscape) {' + rule + '}';
+                    doc.styleSheets[len - 1].insertRule(rule, 0);
+
                     break;
                 } catch (err) {
                     // console.log('JXG.scaleJSXGraphDiv: Could not add CSS rule "' + pseudo_keys[i] + '".');
@@ -3277,6 +3297,7 @@ define('utils/env',['jxg', 'utils/type'], function (JXG, Type) {
                 console.log('One possible reason could be that the id of the JSXGraph container does not start with a letter.');
             }
         }
+
     });
 
     return JXG;
@@ -3599,9 +3620,8 @@ define('utils/event',['jxg', 'utils/type'], function (JXG, Type) {
 
 /**
  * @fileoverview In this file the namespace JXG.Math is defined, which is the base namespace
- * for namespaces like Math.Numerics, Math.Algebra, Math.Statistics etc.
+ * for namespaces like JXG.Math.Numerics, JXG.Math.Plot, JXG.Math.Statistics, JXG.Math.Clip etc.
  */
-
 define('math/math',['jxg', 'utils/type'], function (JXG, Type) {
 
     "use strict";
@@ -11751,77 +11771,79 @@ define('math/numerics',['jxg', 'utils/type', 'utils/env', 'math/math'], function
 });
 
 /*
-    Copyright 2008-2022
-        Matthias Ehmann,
-        Carsten Miller,
-        Reinhard Oldenburg,
-        Alfred Wassermann
+ Copyright 2008-2022
+ Matthias Ehmann,
+ Carsten Miller,
+ Reinhard Oldenburg,
+ Andreas Walter,
+ Alfred Wassermann
 
-    This file is part of JSXGraph.
+ This file is part of JSXGraph.
 
-    JSXGraph is free software dual licensed under the GNU LGPL or MIT License.
+ JSXGraph is free software dual licensed under the GNU LGPL or MIT License.
 
-    You can redistribute it and/or modify it under the terms of the
+ You can redistribute it and/or modify it under the terms of the
 
-      * GNU Lesser General Public License as published by
-        the Free Software Foundation, either version 3 of the License, or
-        (at your option) any later version
-      OR
-      * MIT License: https://github.com/jsxgraph/jsxgraph/blob/master/LICENSE.MIT
+ * GNU Lesser General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version
+ OR
+ * MIT License: https://github.com/jsxgraph/jsxgraph/blob/master/LICENSE.MIT
 
-    JSXGraph is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details.
+ JSXGraph is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Lesser General Public License for more details.
 
-    You should have received a copy of the GNU Lesser General Public License and
-    the MIT License along with JSXGraph. If not, see <http://www.gnu.org/licenses/>
-    and <http://opensource.org/licenses/MIT/>.
+ You should have received a copy of the GNU Lesser General Public License and
+ the MIT License along with JSXGraph. If not, see <http://www.gnu.org/licenses/>
+ and <http://opensource.org/licenses/MIT/>.
 
-    This is a port of jcobyla
+ This is a port of jcobyla
 
-    - to JavaScript by Reihard Oldenburg and
-    - to JSXGraph By Alfred Wassermann
-*/
+ - to JavaScript by Reihard Oldenburg and
+ - to JSXGraph by Alfred Wassermann
+ - optimized by Andreas Walter
+ */
 /*
  * jcobyla
- * 
+ *
  * The MIT License
  *
  * Copyright (c) 2012 Anders Gustafsson, Cureos AB.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files
- * (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, 
- * publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, 
+ * (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge,
+ * publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so,
  * subject to the following conditions:
  *
  * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE 
- * FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+ * FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- * 
+ *
  * Remarks:
- * 
+ *
  * The original Fortran 77 version of this code was by Michael Powell (M.J.D.Powell @ damtp.cam.ac.uk)
  * The Fortran 90 version was by Alan Miller (Alan.Miller @ vic.cmis.csiro.au). Latest revision - 30 October 1998
  */
 
 /**
  * Constrained Optimization BY Linear Approximation in Java.
- * 
+ *
  * COBYLA2 is an implementation of Powell's nonlinear derivative free constrained optimization that uses
  * a linear approximation approach. The algorithm is a sequential trust region algorithm that employs linear
  * approximations to the objective and constraint functions, where the approximations are formed by linear
  * interpolation at n + 1 points in the space of the variables and tries to maintain a regular shaped simplex
  * over iterations.
- * 
+ *
  * It solves nonsmooth NLP with a moderate number of variables (about 100). Inequality constraints only.
- * 
+ *
  * The initial point X is taken as one vertex of the initial simplex with zero being another, so, X should
  * not be entered as the zero vector.
- * 
+ *
  * @author Anders Gustafsson, Cureos AB. Translation to Javascript by Reinhard Oldenburg, Goethe-University
  */
 
@@ -11834,7 +11856,7 @@ define('math/numerics',['jxg', 'utils/type', 'utils/env', 'math/math'], function
  utils/type
  */
 
-define('math/nlp',['jxg'], function (JXG) {
+define('math/nlp',['jxg', 'utils/type'], function (JXG, Type) {
 
     "use strict";
 
@@ -11842,20 +11864,16 @@ define('math/nlp',['jxg'], function (JXG) {
      * The JXG.Math.Nlp namespace holds numerical algorithms for non-linear optimization.
      * @name JXG.Math.Nlp
      * @namespace
-     * 
+     *
      */
-    JXG.Math.Nlp =  {
+    JXG.Math.Nlp = {
 
-        arr: function(n) {
-            var a = new Array(n),
-                i;
-            for (i = 0; i <n ; i++) {
-                a[i] = 0.0;
-            }
-            return a;
+        arr: function (n) {
+            // Is 0 initialized
+            return new Float64Array(n);
         },
 
-        arr2: function(n, m) {
+        arr2: function (n, m) {
             var i = 0,
                 a = new Array(n);
 
@@ -11866,7 +11884,7 @@ define('math/nlp',['jxg'], function (JXG) {
             return a;
         },
 
-        arraycopy: function(x, a, iox, b, n) {
+        arraycopy: function (x, a, iox, b, n) {
             var i = 0;
             while (i < n) {
                 iox[i + b] = x[i + a];
@@ -11896,7 +11914,7 @@ define('math/nlp',['jxg'], function (JXG) {
          * @param maxfun Maximum number of function evaluations before terminating.
          * @returns {Number} Exit status of the COBYLA2 optimization.
          */
-        FindMinimum: function(calcfc, n,  m, x, rhobeg, rhoend,  iprint,  maxfun) {
+        FindMinimum: function (calcfc, n, m, x, rhobeg, rhoend, iprint, maxfun) {
             // CobylaExitStatus FindMinimum(final Calcfc calcfc, int n, int m, double[] x, double rhobeg, double rhoend, int iprint, int maxfun)
             //     This subroutine minimizes an objective function F(X) subject to M
             //     inequality constraints on X, where X is a vector of variables that has
@@ -11960,16 +11978,16 @@ define('math/nlp',['jxg'], function (JXG) {
 
             // Internal representation of the objective and constraints calculation method,
             // accounting for that X and CON arrays in the cobylb method are base-1 arrays.
-            fcalcfc = function(n, m, thisx, con) {  // int n, int m, double[] x, double[] con
-                    var ix = that.arr(n),
-                        ocon, f;
+            fcalcfc = function (n, m, thisx, con) {  // int n, int m, double[] x, double[] con
+                var ix = that.arr(n),
+                    ocon, f;
 
-                    that.arraycopy(thisx, 1, ix, 0, n);
-                    ocon = that.arr(m);
-                    f = calcfc(n, m, ix, ocon);
-                    that.arraycopy(ocon, 0, con, 1, m);
-                    return f;
-                };
+                that.arraycopy(thisx, 1, ix, 0, n);
+                ocon = that.arr(m);
+                f = calcfc(n, m, ix, ocon);
+                that.arraycopy(ocon, 0, con, 1, m);
+                return f;
+            };
 
             status = this.cobylb(fcalcfc, n, m, mpp, iox, rhobeg, rhoend, iprint, maxfun);
             this.arraycopy(iox, 1, x, 0, n);
@@ -11981,18 +11999,18 @@ define('math/nlp',['jxg'], function (JXG) {
         //      double rhobeg, double rhoend, int iprint, int maxfun)
         /**
          * JavaScript implementation of the non-linear optimization method COBYLA.
-         * @param {Function} calcfc 
-         * @param {Number} n 
-         * @param {Number} m 
-         * @param {Number} mpp 
-         * @param {Number} x 
-         * @param {Number} rhobeg 
-         * @param {Number} rhoend 
-         * @param {Number} iprint 
-         * @param {Number} maxfun 
+         * @param {Function} calcfc
+         * @param {Number} n
+         * @param {Number} m
+         * @param {Number} mpp
+         * @param {Number} x
+         * @param {Number} rhobeg
+         * @param {Number} rhoend
+         * @param {Number} iprint
+         * @param {Number} maxfun
          * @returns {Number} Exit status of the COBYLA2 optimization
          */
-        cobylb: function (calcfc, n,  m,  mpp,  x, rhobeg,  rhoend,  iprint,  maxfun) {
+        cobylb: function (calcfc, n, m, mpp, x, rhobeg, rhoend, iprint, maxfun) {
             // calcf ist funktion die aufgerufen wird wie calcfc(n, m, ix, ocon)
             // N.B. Arguments CON, SIM, SIMI, DATMAT, A, VSIG, VETA, SIGBAR, DX, W & IACT
             //      have been removed.
@@ -12068,409 +12086,426 @@ define('math/nlp',['jxg'], function (JXG) {
             //     the algorithm.
             //alert("Iteration "+nfvals+" x="+x);
             L_40:
-            do {
-                if (nfvals >= maxfun && nfvals > 0) {
-                    status = this.MaxIterationsReached;
-                    break L_40;
-                }
-
-                ++nfvals;
-                f = calcfc(n, m, x, con);
-                resmax = 0.0;
-                for (k = 1; k <= m; ++k) {
-                    resmax = Math.max(resmax, -con[k]);
-                }
-                //alert(    "   f="+f+"  resmax="+resmax);
-
-                if (nfvals === iprint - 1 || iprint === 3) {
-                    this.PrintIterationResult(nfvals, f, resmax, x, n, iprint);
-                }
-
-                con[mp] = f;
-                con[mpp] = resmax;
-
-                //     Set the recently calculated function values in a column of DATMAT. This
-                //     array has a column for each vertex of the current simplex, the entries of
-                //     each column being the values of the constraint functions (if any)
-                //     followed by the objective function and the greatest constraint violation
-                //     at the vertex.
-                skipVertexIdent = true;
-                if (!ibrnch) {
-                    skipVertexIdent = false;
-
-                    for (i = 1; i <= mpp; ++i) {
-                        datmat[i][jdrop] = con[i];
-                    }
-
-                    if (nfvals <= np) {
-                        //     Exchange the new vertex of the initial simplex with the optimal vertex if
-                        //     necessary. Then, if the initial simplex is not complete, pick its next
-                        //     vertex and calculate the function values there.
-
-                        if (jdrop <= n) {
-                            if (datmat[mp][np] <= f) {
-                                x[jdrop] = sim[jdrop][np];
-                            } else {
-                                sim[jdrop][np] = x[jdrop];
-                                for (k = 1; k <= mpp; ++k) {
-                                    datmat[k][jdrop] = datmat[k][np];
-                                    datmat[k][np] = con[k];
-                                }
-                                for (k = 1; k <= jdrop; ++k) {
-                                    sim[jdrop][k] = -rho;
-                                    temp = 0.0;
-                                    for (i = k; i <= jdrop; ++i) {
-                                        temp -= simi[i][k];
-                                    }
-                                    simi[jdrop][k] = temp;
-                                }
-                            }
-                        }
-                        if (nfvals <= n) {
-                            jdrop = nfvals;
-                            x[jdrop] += rho;
-                            continue L_40;
-                        }
-                    }
-                    ibrnch = true;
-                }
-
-                L_140:
                 do {
-                    L_550:
-                    do {
-                        if (!skipVertexIdent) {
-                            //     Identify the optimal vertex of the current simplex.
-                            phimin = datmat[mp][np] + parmu * datmat[mpp][np];
-                            nbest = np;
-
-                            for (j = 1; j <= n; ++j) {
-                                temp = datmat[mp][j] + parmu * datmat[mpp][j];
-                                if (temp < phimin) {
-                                    nbest = j;
-                                    phimin = temp;
-                                } else if (temp === phimin && parmu === 0.0 && datmat[mpp][j] < datmat[mpp][nbest]) {
-                                    nbest = j;
-                                }
-                            }
-
-                            //     Switch the best vertex into pole position if it is not there already,
-                            //     and also update SIM, SIMI and DATMAT.
-                            if (nbest <= n) {
-                                for (i = 1; i <= mpp; ++i) {
-                                    temp = datmat[i][np];
-                                    datmat[i][np] = datmat[i][nbest];
-                                    datmat[i][nbest] = temp;
-                                }
-                                for (i = 1; i <= n; ++i) {
-                                    temp = sim[i][nbest];
-                                    sim[i][nbest] = 0.0;
-                                    sim[i][np] += temp;
-
-                                    tempa = 0.0;
-                                    for (k = 1; k <= n; ++k)
-                                    {
-                                        sim[i][k] -= temp;
-                                        tempa -= simi[k][i];
-                                    }
-                                    simi[nbest][i] = tempa;
-                                }
-                            }
-
-                            //     Make an error return if SIGI is a poor approximation to the inverse of
-                            //     the leading N by N submatrix of SIG.
-                            error = 0.0;
-                            for (i = 1; i <= n; ++i) {
-                                for (j = 1; j <= n; ++j) {
-                                    temp = this.DOT_PRODUCT(
-                                            this.PART(this.ROW(simi, i), 1, n),
-                                            this.PART(this.COL(sim, j), 1, n)
-                                        ) - (i === j ? 1.0 : 0.0);
-                                    error = Math.max(error, Math.abs(temp));
-                                }
-                            }
-                            if (error > 0.1) {
-                                status = this.DivergingRoundingErrors;
-                                break L_40;
-                            }
-
-                            //     Calculate the coefficients of the linear approximations to the objective
-                            //     and constraint functions, placing minus the objective function gradient
-                            //     after the constraint gradients in the array A. The vector W is used for
-                            //     working space.
-                            for (k = 1; k <= mp; ++k) {
-                                con[k] = -datmat[k][np];
-                                for (j = 1; j <= n; ++j) {
-                                    w[j] = datmat[k][j] + con[k];
-                                }
-
-                                for (i = 1; i <= n; ++i) {
-                                    a[i][k] = (k === mp ? -1.0 : 1.0) * this.DOT_PRODUCT(
-                                        this.PART(w, 1, n), this.PART(this.COL(simi, i), 1, n));
-                                }
-                            }
-
-                            //     Calculate the values of sigma and eta, and set IFLAG = 0 if the current
-                            //     simplex is not acceptable.
-                            iflag = true;
-                            parsig = alpha * rho;
-                            pareta = beta * rho;
-
-                            for (j = 1; j <= n; ++j) {
-                                wsig = 0.0;
-                                for (k = 1; k <= n; ++k) {
-                                    wsig += simi[j][k] * simi[j][k];
-                                }
-                                weta = 0.0;
-                                for (k = 1; k <= n; ++k) {
-                                    weta += sim[k][j] * sim[k][j];
-                                }
-                                vsig[j] = 1.0 / Math.sqrt(wsig);
-                                veta[j] = Math.sqrt(weta);
-                                if (vsig[j] < parsig || veta[j] > pareta) { iflag = false; }
-                            }
-
-                            //     If a new vertex is needed to improve acceptability, then decide which
-                            //     vertex to drop from the simplex.
-                            if (!ibrnch && !iflag) {
-                                jdrop = 0;
-                                temp = pareta;
-                                for (j = 1; j <= n; ++j) {
-                                    if (veta[j] > temp) {
-                                        jdrop = j;
-                                        temp = veta[j];
-                                    }
-                                }
-                                if (jdrop === 0) {
-                                    for (j = 1; j <= n; ++j) {
-                                        if (vsig[j] < temp) {
-                                            jdrop = j;
-                                            temp = vsig[j];
-                                        }
-                                    }
-                                }
-
-                                //     Calculate the step to the new vertex and its sign.
-                                temp = gamma * rho * vsig[jdrop];
-                                for (k = 1; k <= n; ++k) {
-                                    dx[k] = temp * simi[jdrop][k];
-                                }
-                                cvmaxp = 0.0;
-                                cvmaxm = 0.0;
-                                total = 0.0;
-                                for (k = 1; k <= mp; ++k) {
-                                    total = this.DOT_PRODUCT(
-                                        this.PART(this.COL(a, k), 1, n),
-                                        this.PART(dx, 1, n)
-                                        );
-                                    if (k < mp) {
-                                        temp = datmat[k][np];
-                                        cvmaxp = Math.max(cvmaxp, -total - temp);
-                                        cvmaxm = Math.max(cvmaxm, total - temp);
-                                    }
-                                }
-                                dxsign = parmu * (cvmaxp - cvmaxm) > 2.0 * total ? -1.0 : 1.0;
-
-                                //     Update the elements of SIM and SIMI, and set the next X.
-                                temp = 0.0;
-                                for (i = 1; i <= n; ++i) {
-                                    dx[i] = dxsign * dx[i];
-                                    sim[i][jdrop] = dx[i];
-                                    temp += simi[jdrop][i] * dx[i];
-                                }
-                                for (k = 1; k <= n; ++k) {
-                                    simi[jdrop][k] /= temp;
-                                }
-
-                                for (j = 1; j <= n; ++j) {
-                                    if (j !== jdrop) {
-                                        temp = this.DOT_PRODUCT(
-                                            this.PART(this.ROW(simi, j), 1, n),
-                                            this.PART(dx, 1, n)
-                                            );
-                                        for (k = 1; k <= n; ++k) {
-                                            simi[j][k] -= temp * simi[jdrop][k];
-                                        }
-                                    }
-                                    x[j] = sim[j][np] + dx[j];
-                                }
-                                continue L_40;
-                            }
-
-                            //     Calculate DX = x(*)-x(0).
-                            //     Branch if the length of DX is less than 0.5*RHO.
-                            ifull = this.trstlp(n, m, a, con, rho, dx);
-                            if (!ifull) {
-                                temp = 0.0;
-                                for (k = 1; k <= n; ++k) {
-                                    temp += dx[k] * dx[k];
-                                }
-                                if (temp < 0.25 * rho * rho) {
-                                    ibrnch = true;
-                                    break L_550;
-                                }
-                            }
-
-                            //     Predict the change to F and the new maximum constraint violation if the
-                            //     variables are altered from x(0) to x(0) + DX.
-                            total = 0.0;
-                            resnew = 0.0;
-                            con[mp] = 0.0;
-                            for (k = 1; k <= mp; ++k) {
-                                total = con[k] - this.DOT_PRODUCT(this.PART(this.COL(a, k), 1, n), this.PART(dx, 1, n));
-                                if (k < mp) { resnew = Math.max(resnew, total); }
-                            }
-
-                            //     Increase PARMU if necessary and branch back if this change alters the
-                            //     optimal vertex. Otherwise PREREM and PREREC will be set to the predicted
-                            //     reductions in the merit function and the maximum constraint violation
-                            //     respectively.
-                            prerec = datmat[mpp][np] - resnew;
-                            barmu = prerec > 0.0 ? total / prerec : 0.0;
-                            if (parmu < 1.5 * barmu) {
-                                parmu = 2.0 * barmu;
-                                if (iprint >= 2) { console.log("Increase in PARMU to " + parmu); }
-                                phi = datmat[mp][np] + parmu * datmat[mpp][np];
-                                for (j = 1; j <= n; ++j) {
-                                    temp = datmat[mp][j] + parmu * datmat[mpp][j];
-                                    if (temp < phi || (temp === phi && parmu === 0.0 && datmat[mpp][j] < datmat[mpp][np])) {
-                                        continue L_140;
-                                    }
-                                }
-                            }
-                            prerem = parmu * prerec - total;
-
-                            //     Calculate the constraint and objective functions at x(*).
-                            //     Then find the actual reduction in the merit function.
-                            for (k = 1; k <= n; ++k) {
-                                x[k] = sim[k][np] + dx[k];
-                            }
-                            ibrnch = true;
-                            continue L_40;
-                        }
-
-                        skipVertexIdent = false;
-                        vmold = datmat[mp][np] + parmu * datmat[mpp][np];
-                        vmnew = f + parmu * resmax;
-                        trured = vmold - vmnew;
-                        if (parmu === 0.0 && f === datmat[mp][np]) {
-                            prerem = prerec;
-                            trured = datmat[mpp][np] - resmax;
-                        }
-
-                        //     Begin the operations that decide whether x(*) should replace one of the
-                        //     vertices of the current simplex, the change being mandatory if TRURED is
-                        //     positive. Firstly, JDROP is set to the index of the vertex that is to be
-                        //     replaced.
-                        ratio = trured <= 0.0 ? 1.0 : 0.0;
-                        jdrop = 0;
-                        for (j = 1; j <= n; ++j) {
-                            temp = Math.abs(this.DOT_PRODUCT(this.PART(this.ROW(simi, j), 1, n), this.PART(dx, 1, n)));
-                            if (temp > ratio) {
-                                jdrop = j;
-                                ratio = temp;
-                            }
-                            sigbar[j] = temp * vsig[j];
-                        }
-
-                        //     Calculate the value of ell.
-
-                        edgmax = delta * rho;
-                        l = 0;
-                        for (j = 1; j <= n; ++j) {
-                            if (sigbar[j] >= parsig || sigbar[j] >= vsig[j]) {
-                                temp = veta[j];
-                                if (trured > 0.0) {
-                                    temp = 0.0;
-                                    for (k = 1; k <= n; ++k) {
-                                        temp += Math.pow(dx[k] - sim[k][j], 2.0);
-                                    }
-                                    temp = Math.sqrt(temp);
-                                }
-                                if (temp > edgmax) {
-                                    l = j;
-                                    edgmax = temp;
-                                }
-                            }
-                        }
-                        if (l > 0) { jdrop = l; }
-
-                        if (jdrop !== 0) {
-                            //     Revise the simplex by updating the elements of SIM, SIMI and DATMAT.
-                            temp = 0.0;
-                            for (i = 1; i <= n; ++i) {
-                                sim[i][jdrop] = dx[i];
-                                temp += simi[jdrop][i] * dx[i];
-                            }
-                            for (k = 1; k <= n; ++k) { simi[jdrop][k] /= temp; }
-                            for (j = 1; j <= n; ++j) {
-                                if (j !== jdrop) {
-                                    temp = this.DOT_PRODUCT(this.PART(this.ROW(simi, j), 1, n), this.PART(dx, 1, n));
-                                    for (k = 1; k <= n; ++k) {
-                                        simi[j][k] -= temp * simi[jdrop][k];
-                                    }
-                                }
-                            }
-                            for (k = 1; k <= mpp; ++k) {
-                                datmat[k][jdrop] = con[k];
-                            }
-
-                            //     Branch back for further iterations with the current RHO.
-                            if (trured > 0.0 && trured >= 0.1 * prerem) {
-                                continue L_140;
-                            }
-                        }
-                    } while (false);
-
-                    if (!iflag) {
-                        ibrnch = false;
-                        continue L_140;
-                    }
-
-                    if (rho <= rhoend) {
-                        status = this.Normal;
+                    if (nfvals >= maxfun && nfvals > 0) {
+                        status = this.MaxIterationsReached;
                         break L_40;
                     }
 
-                    //     Otherwise reduce RHO if it is not at its least value and reset PARMU.
-                    cmin = 0.0;
-                    cmax = 0.0;
-                    rho *= 0.5;
-                    if (rho <= 1.5 * rhoend) { rho = rhoend; }
-                    if (parmu > 0.0) {
-                        denom = 0.0;
-                        for (k = 1; k <= mp; ++k) {
-                            cmin = datmat[k][np];
-                            cmax = cmin;
-                            for (i = 1; i <= n; ++i) {
-                                cmin = Math.min(cmin, datmat[k][i]);
-                                cmax = Math.max(cmax, datmat[k][i]);
+                    ++nfvals;
+                    f = calcfc(n, m, x, con);
+                    resmax = 0.0;
+                    for (k = 1; k <= m; ++k) {
+                        resmax = Math.max(resmax, -con[k]);
+                    }
+                    //alert(    "   f="+f+"  resmax="+resmax);
+
+                    if (nfvals === iprint - 1 || iprint === 3) {
+                        this.PrintIterationResult(nfvals, f, resmax, x, n, iprint);
+                    }
+
+                    con[mp] = f;
+                    con[mpp] = resmax;
+
+                    //     Set the recently calculated function values in a column of DATMAT. This
+                    //     array has a column for each vertex of the current simplex, the entries of
+                    //     each column being the values of the constraint functions (if any)
+                    //     followed by the objective function and the greatest constraint violation
+                    //     at the vertex.
+                    skipVertexIdent = true;
+                    if (!ibrnch) {
+                        skipVertexIdent = false;
+
+                        for (i = 1; i <= mpp; ++i) {
+                            datmat[i][jdrop] = con[i];
+                        }
+
+                        if (nfvals <= np) {
+                            //     Exchange the new vertex of the initial simplex with the optimal vertex if
+                            //     necessary. Then, if the initial simplex is not complete, pick its next
+                            //     vertex and calculate the function values there.
+
+                            if (jdrop <= n) {
+                                if (datmat[mp][np] <= f) {
+                                    x[jdrop] = sim[jdrop][np];
+                                } else {
+                                    sim[jdrop][np] = x[jdrop];
+                                    for (k = 1; k <= mpp; ++k) {
+                                        datmat[k][jdrop] = datmat[k][np];
+                                        datmat[k][np] = con[k];
+                                    }
+                                    for (k = 1; k <= jdrop; ++k) {
+                                        sim[jdrop][k] = -rho;
+                                        temp = 0.0;
+                                        for (i = k; i <= jdrop; ++i) {
+                                            temp -= simi[i][k];
+                                        }
+                                        simi[jdrop][k] = temp;
+                                    }
+                                }
                             }
-                            if (k <= m && cmin < 0.5 * cmax) {
-                                temp = Math.max(cmax, 0.0) - cmin;
-                                denom = denom <= 0.0 ? temp : Math.min(denom, temp);
+                            if (nfvals <= n) {
+                                jdrop = nfvals;
+                                x[jdrop] += rho;
+                                continue L_40;
                             }
                         }
-                        if (denom === 0.0) {
-                            parmu = 0.0;
-                        } else if (cmax - cmin < parmu * denom) {
-                            parmu = (cmax - cmin) / denom;
-                        }
+                        ibrnch = true;
                     }
-                    if (iprint >= 2) {
-                        console.log("Reduction in RHO to "+rho+"  and PARMU = "+parmu);
-                    }
-                    if (iprint === 2) {
-                        this.PrintIterationResult(nfvals, datmat[mp][np], datmat[mpp][np], this.COL(sim, np), n, iprint);
-                    }
+
+                    L_140:
+                        do {
+                            L_550:
+                                do {
+                                    if (!skipVertexIdent) {
+                                        //     Identify the optimal vertex of the current simplex.
+                                        phimin = datmat[mp][np] + parmu * datmat[mpp][np];
+                                        nbest = np;
+
+                                        for (j = 1; j <= n; ++j) {
+                                            temp = datmat[mp][j] + parmu * datmat[mpp][j];
+                                            if (temp < phimin) {
+                                                nbest = j;
+                                                phimin = temp;
+                                            } else if (temp === phimin && parmu === 0.0 && datmat[mpp][j] < datmat[mpp][nbest]) {
+                                                nbest = j;
+                                            }
+                                        }
+
+                                        //     Switch the best vertex into pole position if it is not there already,
+                                        //     and also update SIM, SIMI and DATMAT.
+                                        if (nbest <= n) {
+                                            for (i = 1; i <= mpp; ++i) {
+                                                temp = datmat[i][np];
+                                                datmat[i][np] = datmat[i][nbest];
+                                                datmat[i][nbest] = temp;
+                                            }
+                                            for (i = 1; i <= n; ++i) {
+                                                temp = sim[i][nbest];
+                                                sim[i][nbest] = 0.0;
+                                                sim[i][np] += temp;
+
+                                                tempa = 0.0;
+                                                for (k = 1; k <= n; ++k) {
+                                                    sim[i][k] -= temp;
+                                                    tempa -= simi[k][i];
+                                                }
+                                                simi[nbest][i] = tempa;
+                                            }
+                                        }
+
+                                        //     Make an error return if SIGI is a poor approximation to the inverse of
+                                        //     the leading N by N submatrix of SIG.
+                                        error = 0.0;
+                                        if (false) {
+                                            for (i = 1; i <= n; ++i) {
+                                                for (j = 1; j <= n; ++j) {
+                                                    temp = this.DOT_PRODUCT_ROW_COL(simi, i, sim, j, 1, n) - (i === j ? 1.0 : 0.0);
+                                                    // temp = this.DOT_PRODUCT(
+                                                    //     this.PART(this.ROW(simi, i), 1, n),
+                                                    //     this.PART(this.COL(sim, j), 1, n)
+                                                    // ) - (i === j ? 1.0 : 0.0);
+
+                                                    error = Math.max(error, Math.abs(temp));
+                                                }
+                                            }
+                                        }
+                                        if (error > 0.1) {
+                                            status = this.DivergingRoundingErrors;
+                                            break L_40;
+                                        }
+
+                                        //     Calculate the coefficients of the linear approximations to the objective
+                                        //     and constraint functions, placing minus the objective function gradient
+                                        //     after the constraint gradients in the array A. The vector W is used for
+                                        //     working space.
+                                        for (k = 1; k <= mp; ++k) {
+                                            con[k] = -datmat[k][np];
+                                            for (j = 1; j <= n; ++j) {
+                                                w[j] = datmat[k][j] + con[k];
+                                            }
+
+                                            for (i = 1; i <= n; ++i) {
+                                                a[i][k] = (k === mp ? -1.0 : 1.0) *
+                                                    this.DOT_PRODUCT_ROW_COL(w, -1, simi, i, 1, n);
+                                                // this.DOT_PRODUCT(this.PART(w, 1, n), this.PART(this.COL(simi, i), 1, n));
+                                            }
+                                        }
+
+                                        //     Calculate the values of sigma and eta, and set IFLAG = 0 if the current
+                                        //     simplex is not acceptable.
+                                        iflag = true;
+                                        parsig = alpha * rho;
+                                        pareta = beta * rho;
+
+                                        for (j = 1; j <= n; ++j) {
+                                            wsig = 0.0;
+                                            weta = 0.0;
+                                            for (k = 1; k <= n; ++k) {
+                                                wsig += simi[j][k] * simi[j][k];
+                                                weta += sim[k][j] * sim[k][j];
+                                            }
+                                            vsig[j] = 1.0 / Math.sqrt(wsig);
+                                            veta[j] = Math.sqrt(weta);
+                                            if (vsig[j] < parsig || veta[j] > pareta) {
+                                                iflag = false;
+                                            }
+                                        }
+
+                                        //     If a new vertex is needed to improve acceptability, then decide which
+                                        //     vertex to drop from the simplex.
+                                        if (!ibrnch && !iflag) {
+                                            jdrop = 0;
+                                            temp = pareta;
+                                            for (j = 1; j <= n; ++j) {
+                                                if (veta[j] > temp) {
+                                                    jdrop = j;
+                                                    temp = veta[j];
+                                                }
+                                            }
+                                            if (jdrop === 0) {
+                                                for (j = 1; j <= n; ++j) {
+                                                    if (vsig[j] < temp) {
+                                                        jdrop = j;
+                                                        temp = vsig[j];
+                                                    }
+                                                }
+                                            }
+
+                                            //     Calculate the step to the new vertex and its sign.
+                                            temp = gamma * rho * vsig[jdrop];
+                                            for (k = 1; k <= n; ++k) {
+                                                dx[k] = temp * simi[jdrop][k];
+                                            }
+                                            cvmaxp = 0.0;
+                                            cvmaxm = 0.0;
+                                            total = 0.0;
+                                            for (k = 1; k <= mp; ++k) {
+                                                // total = this.DOT_PRODUCT(this.PART(this.COL(a, k), 1, n), this.PART(dx, 1, n));
+                                                total = this.DOT_PRODUCT_ROW_COL(dx, -1, a, k, 1, n);
+                                                if (k < mp) {
+                                                    temp = datmat[k][np];
+                                                    cvmaxp = Math.max(cvmaxp, -total - temp);
+                                                    cvmaxm = Math.max(cvmaxm, total - temp);
+                                                }
+                                            }
+                                            dxsign = parmu * (cvmaxp - cvmaxm) > 2.0 * total ? -1.0 : 1.0;
+
+                                            //     Update the elements of SIM and SIMI, and set the next X.
+                                            temp = 0.0;
+                                            for (i = 1; i <= n; ++i) {
+                                                dx[i] = dxsign * dx[i];
+                                                sim[i][jdrop] = dx[i];
+                                                temp += simi[jdrop][i] * dx[i];
+                                            }
+                                            for (k = 1; k <= n; ++k) {
+                                                simi[jdrop][k] /= temp;
+                                            }
+
+                                            for (j = 1; j <= n; ++j) {
+                                                if (j !== jdrop) {
+                                                    // temp = this.DOT_PRODUCT(this.PART(this.ROW(simi, j), 1, n), this.PART(dx, 1, n));
+                                                    temp = this.DOT_PRODUCT_ROW_COL(simi, j, dx, -1, 1, n);
+                                                    for (k = 1; k <= n; ++k) {
+                                                        simi[j][k] -= temp * simi[jdrop][k];
+                                                    }
+                                                }
+                                                x[j] = sim[j][np] + dx[j];
+                                            }
+                                            continue L_40;
+                                        }
+
+                                        //     Calculate DX = x(*)-x(0).
+                                        //     Branch if the length of DX is less than 0.5*RHO.
+                                        ifull = this.trstlp(n, m, a, con, rho, dx);
+                                        if (!ifull) {
+                                            temp = 0.0;
+                                            for (k = 1; k <= n; ++k) {
+                                                temp += dx[k] * dx[k];
+                                            }
+                                            if (temp < 0.25 * rho * rho) {
+                                                ibrnch = true;
+                                                break L_550;
+                                            }
+                                        }
+
+                                        //     Predict the change to F and the new maximum constraint violation if the
+                                        //     variables are altered from x(0) to x(0) + DX.
+                                        total = 0.0;
+                                        resnew = 0.0;
+                                        con[mp] = 0.0;
+                                        for (k = 1; k <= mp; ++k) {
+                                            //total = con[k] - this.DOT_PRODUCT(this.PART(this.COL(a, k), 1, n), this.PART(dx, 1, n));
+                                            total = con[k] - this.DOT_PRODUCT_ROW_COL(dx, -1, a, k, 1, n);
+                                            if (k < mp) {
+                                                resnew = Math.max(resnew, total);
+                                            }
+                                        }
+
+                                        //     Increase PARMU if necessary and branch back if this change alters the
+                                        //     optimal vertex. Otherwise PREREM and PREREC will be set to the predicted
+                                        //     reductions in the merit function and the maximum constraint violation
+                                        //     respectively.
+                                        prerec = datmat[mpp][np] - resnew;
+                                        barmu = prerec > 0.0 ? total / prerec : 0.0;
+                                        if (parmu < 1.5 * barmu) {
+                                            parmu = 2.0 * barmu;
+                                            if (iprint >= 2) {
+                                                console.log("Increase in PARMU to " + parmu);
+                                            }
+                                            phi = datmat[mp][np] + parmu * datmat[mpp][np];
+                                            for (j = 1; j <= n; ++j) {
+                                                temp = datmat[mp][j] + parmu * datmat[mpp][j];
+                                                if (temp < phi || (temp === phi && parmu === 0.0 && datmat[mpp][j] < datmat[mpp][np])) {
+                                                    continue L_140;
+                                                }
+                                            }
+                                        }
+                                        prerem = parmu * prerec - total;
+
+                                        //     Calculate the constraint and objective functions at x(*).
+                                        //     Then find the actual reduction in the merit function.
+                                        for (k = 1; k <= n; ++k) {
+                                            x[k] = sim[k][np] + dx[k];
+                                        }
+                                        ibrnch = true;
+                                        continue L_40;
+                                    }
+
+                                    skipVertexIdent = false;
+                                    vmold = datmat[mp][np] + parmu * datmat[mpp][np];
+                                    vmnew = f + parmu * resmax;
+                                    trured = vmold - vmnew;
+                                    if (parmu === 0.0 && f === datmat[mp][np]) {
+                                        prerem = prerec;
+                                        trured = datmat[mpp][np] - resmax;
+                                    }
+
+                                    //     Begin the operations that decide whether x(*) should replace one of the
+                                    //     vertices of the current simplex, the change being mandatory if TRURED is
+                                    //     positive. Firstly, JDROP is set to the index of the vertex that is to be
+                                    //     replaced.
+                                    ratio = trured <= 0.0 ? 1.0 : 0.0;
+                                    jdrop = 0;
+                                    for (j = 1; j <= n; ++j) {
+                                        // temp = Math.abs(this.DOT_PRODUCT(this.PART(this.ROW(simi, j), 1, n), this.PART(dx, 1, n)));
+                                        temp = Math.abs(this.DOT_PRODUCT_ROW_COL(simi, j, dx, -1, 1, n));
+                                        if (temp > ratio) {
+                                            jdrop = j;
+                                            ratio = temp;
+                                        }
+                                        sigbar[j] = temp * vsig[j];
+                                    }
+
+                                    //     Calculate the value of ell.
+
+                                    edgmax = delta * rho;
+                                    l = 0;
+                                    for (j = 1; j <= n; ++j) {
+                                        if (sigbar[j] >= parsig || sigbar[j] >= vsig[j]) {
+                                            temp = veta[j];
+                                            if (trured > 0.0) {
+                                                temp = 0.0;
+                                                for (k = 1; k <= n; ++k) {
+                                                    temp += Math.pow(dx[k] - sim[k][j], 2.0);
+                                                }
+                                                temp = Math.sqrt(temp);
+                                            }
+                                            if (temp > edgmax) {
+                                                l = j;
+                                                edgmax = temp;
+                                            }
+                                        }
+                                    }
+                                    if (l > 0) {
+                                        jdrop = l;
+                                    }
+
+                                    if (jdrop !== 0) {
+                                        //     Revise the simplex by updating the elements of SIM, SIMI and DATMAT.
+                                        temp = 0.0;
+                                        for (i = 1; i <= n; ++i) {
+                                            sim[i][jdrop] = dx[i];
+                                            temp += simi[jdrop][i] * dx[i];
+                                        }
+                                        for (k = 1; k <= n; ++k) {
+                                            simi[jdrop][k] /= temp;
+                                        }
+                                        for (j = 1; j <= n; ++j) {
+                                            if (j !== jdrop) {
+                                                // temp = this.DOT_PRODUCT(this.PART(this.ROW(simi, j), 1, n), this.PART(dx, 1, n));
+                                                temp = this.DOT_PRODUCT_ROW_COL(simi, j, dx, -1, 1, n);
+                                                for (k = 1; k <= n; ++k) {
+                                                    simi[j][k] -= temp * simi[jdrop][k];
+                                                }
+                                            }
+                                        }
+                                        for (k = 1; k <= mpp; ++k) {
+                                            datmat[k][jdrop] = con[k];
+                                        }
+
+                                        //     Branch back for further iterations with the current RHO.
+                                        if (trured > 0.0 && trured >= 0.1 * prerem) {
+                                            continue L_140;
+                                        }
+                                    }
+                                } while (false);
+
+                            if (!iflag) {
+                                ibrnch = false;
+                                continue L_140;
+                            }
+
+                            if (rho <= rhoend) {
+                                status = this.Normal;
+                                break L_40;
+                            }
+
+                            //     Otherwise reduce RHO if it is not at its least value and reset PARMU.
+                            cmin = 0.0;
+                            cmax = 0.0;
+                            rho *= 0.5;
+                            if (rho <= 1.5 * rhoend) {
+                                rho = rhoend;
+                            }
+                            if (parmu > 0.0) {
+                                denom = 0.0;
+                                for (k = 1; k <= mp; ++k) {
+                                    cmin = datmat[k][np];
+                                    cmax = cmin;
+                                    for (i = 1; i <= n; ++i) {
+                                        cmin = Math.min(cmin, datmat[k][i]);
+                                        cmax = Math.max(cmax, datmat[k][i]);
+                                    }
+                                    if (k <= m && cmin < 0.5 * cmax) {
+                                        temp = Math.max(cmax, 0.0) - cmin;
+                                        denom = denom <= 0.0 ? temp : Math.min(denom, temp);
+                                    }
+                                }
+                                if (denom === 0.0) {
+                                    parmu = 0.0;
+                                } else if (cmax - cmin < parmu * denom) {
+                                    parmu = (cmax - cmin) / denom;
+                                }
+                            }
+                            if (iprint >= 2) {
+                                console.log("Reduction in RHO to " + rho + "  and PARMU = " + parmu);
+                            }
+                            if (iprint === 2) {
+                                this.PrintIterationResult(nfvals, datmat[mp][np], datmat[mpp][np], this.COL(sim, np), n, iprint);
+                            }
+                        } while (true);
                 } while (true);
-            } while (true);
 
             switch (status) {
                 case this.Normal:
-                    if (iprint >= 1) { console.log("%nNormal return from subroutine COBYLA%n"); }
+                    if (iprint >= 1) {
+                        console.log("%nNormal return from subroutine COBYLA%n");
+                    }
                     if (ifull) {
-                        if (iprint >= 1) { this.PrintIterationResult(nfvals, f, resmax, x, n, iprint); }
+                        if (iprint >= 1) {
+                            this.PrintIterationResult(nfvals, f, resmax, x, n, iprint);
+                        }
                         return status;
                     }
                     break;
@@ -12486,15 +12521,19 @@ define('math/nlp',['jxg'], function (JXG) {
                     break;
             }
 
-            for (k = 1; k <= n; ++k) { x[k] = sim[k][np]; }
+            for (k = 1; k <= n; ++k) {
+                x[k] = sim[k][np];
+            }
             f = datmat[mp][np];
             resmax = datmat[mpp][np];
-            if (iprint >= 1) { this.PrintIterationResult(nfvals, f, resmax, x, n, iprint); }
+            if (iprint >= 1) {
+                this.PrintIterationResult(nfvals, f, resmax, x, n, iprint);
+            }
 
             return status;
         },
 
-        trstlp: function(n,  m,  a, b, rho,  dx) { //(int n, int m, double[][] a, double[] b, double rho, double[] dx)
+        trstlp: function (n, m, a, b, rho, dx) { //(int n, int m, double[][] a, double[] b, double rho, double[] dx)
             // N.B. Arguments Z, ZDOTA, VMULTC, SDIRN, DXNEW, VMULTD & IACT have been removed.
 
             //     This subroutine calculates an N-component vector DX by applying the
@@ -12592,385 +12631,426 @@ define('math/nlp',['jxg'], function (JXG) {
             first = true;
             do {
                 L_60:
-                do {
-                    if (!first || (first && resmax === 0.0)) {
-                        mcon = m + 1;
-                        icon = mcon;
-                        iact[mcon] = mcon;
-                        vmultc[mcon] = 0.0;
-                    }
-                    first = false;
-
-                    optold = 0.0;
-                    icount = 0;
-                    step = 0;
-                    stpful = 0;
-
-                    L_70:
                     do {
-                        optnew = (mcon === m) ? resmax : -this.DOT_PRODUCT(
-                                this.PART(dx, 1, n), this.PART(this.COL(a, mcon), 1, n)
-                            );
-
-                        if (icount === 0 || optnew < optold) {
-                            optold = optnew;
-                            nactx = nact;
-                            icount = 3;
-                        } else if (nact > nactx) {
-                            nactx = nact;
-                            icount = 3;
-                        } else {
-                            --icount;
+                        if (!first || (first && resmax === 0.0)) {
+                            mcon = m + 1;
+                            icon = mcon;
+                            iact[mcon] = mcon;
+                            vmultc[mcon] = 0.0;
                         }
-                        if (icount === 0) { break L_60; }
+                        first = false;
 
-                        //     If ICON exceeds NACT, then we add the constraint with index IACT(ICON) to
-                        //     the active set. Apply Givens rotations so that the last N-NACT-1 columns
-                        //     of Z are orthogonal to the gradient of the new constraint, a scalar
-                        //     product being set to zero if its nonzero value could be due to computer
-                        //     rounding errors. The array DXNEW is used for working space.
-                        ratio = 0;
-                        if (icon <= nact) {
-                            if (icon < nact) {
-                                //     Delete the constraint that has the index IACT(ICON) from the active set.
+                        optold = 0.0;
+                        icount = 0;
+                        step = 0;
+                        stpful = 0;
 
-                                isave = iact[icon];
-                                vsave = vmultc[icon];
-                                k = icon;
-                                do {
-                                    kp = k + 1;
-                                    kk = iact[kp];
-                                    sp = this.DOT_PRODUCT(
-                                            this.PART(this.COL(z, k), 1, n),
-                                            this.PART(this.COL(a, kk), 1, n)
-                                        );
-                                    temp = Math.sqrt(sp * sp + zdota[kp] * zdota[kp]);
-                                    alpha = zdota[kp] / temp;
-                                    beta = sp / temp;
-                                    zdota[kp] = alpha * zdota[k];
-                                    zdota[k] = temp;
-                                    for (i = 1; i <= n; ++i) {
-                                        temp = alpha * z[i][kp] + beta * z[i][k];
-                                        z[i][kp] = alpha * z[i][k] - beta * z[i][kp];
-                                        z[i][k] = temp;
+                        L_70:
+                            do {
+                                // optnew = (mcon === m) ? resmax : -this.DOT_PRODUCT(this.PART(dx, 1, n), this.PART(this.COL(a, mcon), 1, n));
+                                optnew = (mcon === m) ? resmax : -this.DOT_PRODUCT_ROW_COL(dx, -1, a, mcon, 1, n);
+
+                                if (icount === 0 || optnew < optold) {
+                                    optold = optnew;
+                                    nactx = nact;
+                                    icount = 3;
+                                } else if (nact > nactx) {
+                                    nactx = nact;
+                                    icount = 3;
+                                } else {
+                                    --icount;
+                                }
+                                if (icount === 0) {
+                                    break L_60;
+                                }
+
+                                //     If ICON exceeds NACT, then we add the constraint with index IACT(ICON) to
+                                //     the active set. Apply Givens rotations so that the last N-NACT-1 columns
+                                //     of Z are orthogonal to the gradient of the new constraint, a scalar
+                                //     product being set to zero if its nonzero value could be due to computer
+                                //     rounding errors. The array DXNEW is used for working space.
+                                ratio = 0;
+                                if (icon <= nact) {
+                                    if (icon < nact) {
+                                        //     Delete the constraint that has the index IACT(ICON) from the active set.
+
+                                        isave = iact[icon];
+                                        vsave = vmultc[icon];
+                                        k = icon;
+                                        do {
+                                            kp = k + 1;
+                                            kk = iact[kp];
+                                            sp = this.DOT_PRODUCT(
+                                                this.PART(this.COL(z, k), 1, n),
+                                                this.PART(this.COL(a, kk), 1, n)
+                                            );
+                                            temp = Math.sqrt(sp * sp + zdota[kp] * zdota[kp]);
+                                            alpha = zdota[kp] / temp;
+                                            beta = sp / temp;
+                                            zdota[kp] = alpha * zdota[k];
+                                            zdota[k] = temp;
+                                            for (i = 1; i <= n; ++i) {
+                                                temp = alpha * z[i][kp] + beta * z[i][k];
+                                                z[i][kp] = alpha * z[i][k] - beta * z[i][kp];
+                                                z[i][k] = temp;
+                                            }
+                                            iact[k] = kk;
+                                            vmultc[k] = vmultc[kp];
+                                            k = kp;
+                                        } while (k < nact);
+
+                                        iact[k] = isave;
+                                        vmultc[k] = vsave;
                                     }
-                                    iact[k] = kk;
-                                    vmultc[k] = vmultc[kp];
-                                    k = kp;
-                                } while (k < nact);
+                                    --nact;
 
-                                iact[k] = isave;
-                                vmultc[k] = vsave;
-                            }
-                            --nact;
-
-                            //     If stage one is in progress, then set SDIRN to the direction of the next
-                            //     change to the current vector of variables.
-                            if (mcon > m) {
-                                //     Pick the next search direction of stage two.
-                                temp = 1.0 / zdota[nact];
-                                for (k = 1; k <= n; ++k) { sdirn[k] = temp * z[k][nact]; }
-                            } else {
-                                temp = this.DOT_PRODUCT(
-                                        this.PART(sdirn, 1, n), this.PART(this.COL(z, nact + 1), 1, n)
-                                    );
-                                for (k = 1; k <= n; ++k) { sdirn[k] -= temp * z[k][nact + 1]; }
-                            }
-                        } else {
-                            kk = iact[icon];
-                            for (k = 1; k <= n; ++k) { dxnew[k] = a[k][kk]; }
-                            tot = 0.0;
-
-                            // {
-                                k = n;
-                                while (k > nact) {
-                                    sp = 0.0;
-                                    spabs = 0.0;
-                                    for (i = 1; i <= n; ++i) {
-                                        temp = z[i][k] * dxnew[i];
-                                        sp += temp;
-                                        spabs += Math.abs(temp);
-                                    }
-                                    acca = spabs + 0.1 * Math.abs(sp);
-                                    accb = spabs + 0.2 * Math.abs(sp);
-                                    if (spabs >= acca || acca >= accb) { sp = 0.0; }
-                                    if (tot === 0.0) {
-                                        tot = sp;
+                                    //     If stage one is in progress, then set SDIRN to the direction of the next
+                                    //     change to the current vector of variables.
+                                    if (mcon > m) {
+                                        //     Pick the next search direction of stage two.
+                                        temp = 1.0 / zdota[nact];
+                                        for (k = 1; k <= n; ++k) {
+                                            sdirn[k] = temp * z[k][nact];
+                                        }
                                     } else {
-                                        kp = k + 1;
-                                        temp = Math.sqrt(sp * sp + tot * tot);
-                                        alpha = sp / temp;
-                                        beta = tot / temp;
-                                        tot = temp;
-                                        for (i = 1; i <= n; ++i) {
-                                            temp = alpha * z[i][k] + beta * z[i][kp];
-                                            z[i][kp] = alpha * z[i][kp] - beta * z[i][k];
-                                            z[i][k] = temp;
+                                        // temp = this.DOT_PRODUCT(this.PART(sdirn, 1, n), this.PART(this.COL(z, nact + 1), 1, n));
+                                        temp = this.DOT_PRODUCT_ROW_COL(sdirn, -1, z, nact + 1, 1, n);
+                                        for (k = 1; k <= n; ++k) {
+                                            sdirn[k] -= temp * z[k][nact + 1];
                                         }
                                     }
-                                    --k;
-                                }
-                            // }
+                                } else {
+                                    kk = iact[icon];
+                                    for (k = 1; k <= n; ++k) {
+                                        dxnew[k] = a[k][kk];
+                                    }
+                                    tot = 0.0;
 
-                            if (tot === 0.0) {
-                                //     The next instruction is reached if a deletion has to be made from the
-                                //     active set in order to make room for the new active constraint, because
-                                //     the new constraint gradient is a linear combination of the gradients of
-                                //     the old active constraints.  Set the elements of VMULTD to the multipliers
-                                //     of the linear combination.  Further, set IOUT to the index of the
-                                //     constraint to be deleted, but branch if no suitable index can be found.
-
-                                ratio = -1.0;
-                                //{
-                                    k = nact;
-                                    do {
-                                        zdotv = 0.0;
-                                        zdvabs = 0.0;
-
+                                    // {
+                                    k = n;
+                                    while (k > nact) {
+                                        sp = 0.0;
+                                        spabs = 0.0;
                                         for (i = 1; i <= n; ++i) {
                                             temp = z[i][k] * dxnew[i];
-                                            zdotv += temp;
-                                            zdvabs += Math.abs(temp);
+                                            sp += temp;
+                                            spabs += Math.abs(temp);
                                         }
-                                        acca = zdvabs + 0.1 * Math.abs(zdotv);
-                                        accb = zdvabs + 0.2 * Math.abs(zdotv);
-                                        if (zdvabs < acca && acca < accb) {
-                                            temp = zdotv / zdota[k];
-                                            if (temp > 0.0 && iact[k] <= m) {
-                                                tempa = vmultc[k] / temp;
-                                                if (ratio < 0.0 || tempa < ratio) { ratio = tempa; }
-                                            }
-
-                                            if (k >= 2) {
-                                                kw = iact[k];
-                                                for (i = 1; i <= n; ++i) { dxnew[i] -= temp * a[i][kw]; }
-                                            }
-                                            vmultd[k] = temp;
+                                        acca = spabs + 0.1 * Math.abs(sp);
+                                        accb = spabs + 0.2 * Math.abs(sp);
+                                        if (spabs >= acca || acca >= accb) {
+                                            sp = 0.0;
+                                        }
+                                        if (tot === 0.0) {
+                                            tot = sp;
                                         } else {
-                                            vmultd[k] = 0.0;
+                                            kp = k + 1;
+                                            temp = Math.sqrt(sp * sp + tot * tot);
+                                            alpha = sp / temp;
+                                            beta = tot / temp;
+                                            tot = temp;
+                                            for (i = 1; i <= n; ++i) {
+                                                temp = alpha * z[i][k] + beta * z[i][kp];
+                                                z[i][kp] = alpha * z[i][kp] - beta * z[i][k];
+                                                z[i][k] = temp;
+                                            }
                                         }
-                                    } while (--k > 0);
-                                //}
-                                if (ratio < 0.0) { break L_60; }
+                                        --k;
+                                    }
+                                    // }
 
-                                //     Revise the Lagrange multipliers and reorder the active constraints so
-                                //     that the one to be replaced is at the end of the list. Also calculate the
-                                //     new value of ZDOTA(NACT) and branch if it is not acceptable.
+                                    if (tot === 0.0) {
+                                        //     The next instruction is reached if a deletion has to be made from the
+                                        //     active set in order to make room for the new active constraint, because
+                                        //     the new constraint gradient is a linear combination of the gradients of
+                                        //     the old active constraints.  Set the elements of VMULTD to the multipliers
+                                        //     of the linear combination.  Further, set IOUT to the index of the
+                                        //     constraint to be deleted, but branch if no suitable index can be found.
 
-                                for (k = 1; k <= nact; ++k) {
-                                    vmultc[k] = Math.max(0.0, vmultc[k] - ratio * vmultd[k]);
-                                }
-                                if (icon < nact) {
-                                    isave = iact[icon];
-                                    vsave = vmultc[icon];
-                                    k = icon;
-                                    do {
-                                        kp = k + 1;
-                                        kw = iact[kp];
-                                        sp = this.DOT_PRODUCT(
-                                                this.PART(this.COL(z, k), 1, n),
-                                                this.PART(this.COL(a, kw), 1, n)
-                                            );
-                                        temp = Math.sqrt(sp * sp + zdota[kp] * zdota[kp]);
-                                        alpha = zdota[kp] / temp;
-                                        beta = sp / temp;
-                                        zdota[kp] = alpha * zdota[k];
-                                        zdota[k] = temp;
-                                        for (i = 1; i <= n; ++i) {
-                                            temp = alpha * z[i][kp] + beta * z[i][k];
-                                            z[i][kp] = alpha * z[i][k] - beta * z[i][kp];
-                                            z[i][k] = temp;
+                                        ratio = -1.0;
+                                        //{
+                                        k = nact;
+                                        do {
+                                            zdotv = 0.0;
+                                            zdvabs = 0.0;
+
+                                            for (i = 1; i <= n; ++i) {
+                                                temp = z[i][k] * dxnew[i];
+                                                zdotv += temp;
+                                                zdvabs += Math.abs(temp);
+                                            }
+                                            acca = zdvabs + 0.1 * Math.abs(zdotv);
+                                            accb = zdvabs + 0.2 * Math.abs(zdotv);
+                                            if (zdvabs < acca && acca < accb) {
+                                                temp = zdotv / zdota[k];
+                                                if (temp > 0.0 && iact[k] <= m) {
+                                                    tempa = vmultc[k] / temp;
+                                                    if (ratio < 0.0 || tempa < ratio) {
+                                                        ratio = tempa;
+                                                    }
+                                                }
+
+                                                if (k >= 2) {
+                                                    kw = iact[k];
+                                                    for (i = 1; i <= n; ++i) {
+                                                        dxnew[i] -= temp * a[i][kw];
+                                                    }
+                                                }
+                                                vmultd[k] = temp;
+                                            } else {
+                                                vmultd[k] = 0.0;
+                                            }
+                                        } while (--k > 0);
+                                        //}
+                                        if (ratio < 0.0) {
+                                            break L_60;
                                         }
-                                        iact[k] = kw;
-                                        vmultc[k] = vmultc[kp];
-                                        k = kp;
-                                    } while (k < nact);
-                                    iact[k] = isave;
-                                    vmultc[k] = vsave;
-                                }
-                                temp = this.DOT_PRODUCT(
+
+                                        //     Revise the Lagrange multipliers and reorder the active constraints so
+                                        //     that the one to be replaced is at the end of the list. Also calculate the
+                                        //     new value of ZDOTA(NACT) and branch if it is not acceptable.
+
+                                        for (k = 1; k <= nact; ++k) {
+                                            vmultc[k] = Math.max(0.0, vmultc[k] - ratio * vmultd[k]);
+                                        }
+                                        if (icon < nact) {
+                                            isave = iact[icon];
+                                            vsave = vmultc[icon];
+                                            k = icon;
+                                            do {
+                                                kp = k + 1;
+                                                kw = iact[kp];
+                                                sp = this.DOT_PRODUCT(
+                                                    this.PART(this.COL(z, k), 1, n),
+                                                    this.PART(this.COL(a, kw), 1, n)
+                                                );
+                                                temp = Math.sqrt(sp * sp + zdota[kp] * zdota[kp]);
+                                                alpha = zdota[kp] / temp;
+                                                beta = sp / temp;
+                                                zdota[kp] = alpha * zdota[k];
+                                                zdota[k] = temp;
+                                                for (i = 1; i <= n; ++i) {
+                                                    temp = alpha * z[i][kp] + beta * z[i][k];
+                                                    z[i][kp] = alpha * z[i][k] - beta * z[i][kp];
+                                                    z[i][k] = temp;
+                                                }
+                                                iact[k] = kw;
+                                                vmultc[k] = vmultc[kp];
+                                                k = kp;
+                                            } while (k < nact);
+                                            iact[k] = isave;
+                                            vmultc[k] = vsave;
+                                        }
+                                        temp = this.DOT_PRODUCT(
                                             this.PART(this.COL(z, nact), 1, n),
                                             this.PART(this.COL(a, kk), 1, n)
                                         );
-                                if (temp === 0.0) { break L_60; }
-                                zdota[nact] = temp;
-                                vmultc[icon] = 0.0;
-                                vmultc[nact] = ratio;
-                            } else {
-                                //     Add the new constraint if this can be done without a deletion from the
-                                //     active set.
+                                        if (temp === 0.0) {
+                                            break L_60;
+                                        }
+                                        zdota[nact] = temp;
+                                        vmultc[icon] = 0.0;
+                                        vmultc[nact] = ratio;
+                                    } else {
+                                        //     Add the new constraint if this can be done without a deletion from the
+                                        //     active set.
 
-                                ++nact;
-                                zdota[nact] = tot;
-                                vmultc[icon] = vmultc[nact];
-                                vmultc[nact] = 0.0;
-                            }
+                                        ++nact;
+                                        zdota[nact] = tot;
+                                        vmultc[icon] = vmultc[nact];
+                                        vmultc[nact] = 0.0;
+                                    }
 
-                            //     Update IACT and ensure that the objective function continues to be
-                            //     treated as the last active constraint when MCON>M.
+                                    //     Update IACT and ensure that the objective function continues to be
+                                    //     treated as the last active constraint when MCON>M.
 
-                            iact[icon] = iact[nact];
-                            iact[nact] = kk;
-                            if (mcon > m && kk !== mcon) {
-                                k = nact - 1;
-                                sp = this.DOT_PRODUCT(
-                                        this.PART(this.COL(z, k), 1, n),
-                                        this.PART(this.COL(a, kk), 1, n)
-                                    );
-                                temp = Math.sqrt(sp * sp + zdota[nact] * zdota[nact]);
-                                alpha = zdota[nact] / temp;
-                                beta = sp / temp;
-                                zdota[nact] = alpha * zdota[k];
-                                zdota[k] = temp;
-                                for (i = 1; i <= n; ++i) {
-                                    temp = alpha * z[i][nact] + beta * z[i][k];
-                                    z[i][nact] = alpha * z[i][k] - beta * z[i][nact];
-                                    z[i][k] = temp;
-                                }
-                                iact[nact] = iact[k];
-                                iact[k] = kk;
-                                temp = vmultc[k];
-                                vmultc[k] = vmultc[nact];
-                                vmultc[nact] = temp;
-                            }
-
-                            //     If stage one is in progress, then set SDIRN to the direction of the next
-                            //     change to the current vector of variables.
-                            if (mcon > m) {
-                                //     Pick the next search direction of stage two.
-                                temp = 1.0 / zdota[nact];
-                                for (k = 1; k <= n; ++k) { sdirn[k] = temp * z[k][nact]; }
-                            } else {
-                                kk = iact[nact];
-                                temp = (this.DOT_PRODUCT(
-                                            this.PART(sdirn, 1, n),
+                                    iact[icon] = iact[nact];
+                                    iact[nact] = kk;
+                                    if (mcon > m && kk !== mcon) {
+                                        k = nact - 1;
+                                        sp = this.DOT_PRODUCT(
+                                            this.PART(this.COL(z, k), 1, n),
                                             this.PART(this.COL(a, kk), 1, n)
-                                        ) - 1.0) / zdota[nact];
-                                for (k = 1; k <= n; ++k) { sdirn[k] -= temp * z[k][nact]; }
-                            }
-                        }
+                                        );
+                                        temp = Math.sqrt(sp * sp + zdota[nact] * zdota[nact]);
+                                        alpha = zdota[nact] / temp;
+                                        beta = sp / temp;
+                                        zdota[nact] = alpha * zdota[k];
+                                        zdota[k] = temp;
+                                        for (i = 1; i <= n; ++i) {
+                                            temp = alpha * z[i][nact] + beta * z[i][k];
+                                            z[i][nact] = alpha * z[i][k] - beta * z[i][nact];
+                                            z[i][k] = temp;
+                                        }
+                                        iact[nact] = iact[k];
+                                        iact[k] = kk;
+                                        temp = vmultc[k];
+                                        vmultc[k] = vmultc[nact];
+                                        vmultc[nact] = temp;
+                                    }
 
-                        //     Calculate the step to the boundary of the trust region or take the step
-                        //     that reduces RESMAX to zero. The two statements below that include the
-                        //     factor 1.0E-6 prevent some harmless underflows that occurred in a test
-                        //     calculation. Further, we skip the step if it could be zero within a
-                        //     reasonable tolerance for computer rounding errors.
-                        dd = rho * rho;
-                        sd = 0.0;
-                        ss = 0.0;
-                        for (i = 1; i <= n; ++i) {
-                            if (Math.abs(dx[i]) >= 1.0E-6 * rho) { dd -= dx[i] * dx[i]; }
-                            sd += dx[i] * sdirn[i];
-                            ss += sdirn[i] * sdirn[i];
-                        }
-                        if (dd <= 0.0) { break L_60; }
-                        temp = Math.sqrt(ss * dd);
-                        if (Math.abs(sd) >= 1.0E-6 * temp) { temp = Math.sqrt(ss * dd + sd * sd); }
-                        stpful = dd / (temp + sd);
-                        step = stpful;
-                        if (mcon === m) {
-                            acca = step + 0.1 * resmax;
-                            accb = step + 0.2 * resmax;
-                            if (step >= acca || acca >= accb) { break L_70; }
-                            step = Math.min(step, resmax);
-                        }
+                                    //     If stage one is in progress, then set SDIRN to the direction of the next
+                                    //     change to the current vector of variables.
+                                    if (mcon > m) {
+                                        //     Pick the next search direction of stage two.
+                                        temp = 1.0 / zdota[nact];
+                                        for (k = 1; k <= n; ++k) {
+                                            sdirn[k] = temp * z[k][nact];
+                                        }
+                                    } else {
+                                        kk = iact[nact];
+                                        // temp = (this.DOT_PRODUCT(this.PART(sdirn, 1, n),this.PART(this.COL(a, kk), 1, n)) - 1.0) / zdota[nact];
+                                        temp = (this.DOT_PRODUCT_ROW_COL(sdirn, -1, a, kk, 1, n) - 1.0) / zdota[nact];
+                                        for (k = 1; k <= n; ++k) {
+                                            sdirn[k] -= temp * z[k][nact];
+                                        }
+                                    }
+                                }
 
-                        //     Set DXNEW to the new variables if STEP is the steplength, and reduce
-                        //     RESMAX to the corresponding maximum residual if stage one is being done.
-                        //     Because DXNEW will be changed during the calculation of some Lagrange
-                        //     multipliers, it will be restored to the following value later.
-                        for (k = 1; k <= n; ++k) { dxnew[k] = dx[k] + step * sdirn[k]; }
-                        if (mcon === m) {
-                            resold = resmax;
-                            resmax = 0.0;
-                            for (k = 1; k <= nact; ++k) {
-                                kk = iact[k];
-                                temp = b[kk] - this.DOT_PRODUCT(
-                                        this.PART(this.COL(a, kk), 1, n), this.PART(dxnew, 1, n)
-                                    );
-                                resmax = Math.max(resmax, temp);
-                            }
-                        }
-
-                        //     Set VMULTD to the VMULTC vector that would occur if DX became DXNEW. A
-                        //     device is included to force VMULTD(K) = 0.0 if deviations from this value
-                        //     can be attributed to computer rounding errors. First calculate the new
-                        //     Lagrange multipliers.
-                        //{
-                            k = nact;
-                            do {
-                                zdotw = 0.0;
-                                zdwabs = 0.0;
+                                //     Calculate the step to the boundary of the trust region or take the step
+                                //     that reduces RESMAX to zero. The two statements below that include the
+                                //     factor 1.0E-6 prevent some harmless underflows that occurred in a test
+                                //     calculation. Further, we skip the step if it could be zero within a
+                                //     reasonable tolerance for computer rounding errors.
+                                dd = rho * rho;
+                                sd = 0.0;
+                                ss = 0.0;
                                 for (i = 1; i <= n; ++i) {
-                                    temp = z[i][k] * dxnew[i];
-                                    zdotw += temp;
-                                    zdwabs += Math.abs(temp);
+                                    if (Math.abs(dx[i]) >= 1.0E-6 * rho) {
+                                        dd -= dx[i] * dx[i];
+                                    }
+                                    sd += dx[i] * sdirn[i];
+                                    ss += sdirn[i] * sdirn[i];
                                 }
-                                acca = zdwabs + 0.1 * Math.abs(zdotw);
-                                accb = zdwabs + 0.2 * Math.abs(zdotw);
-                                if (zdwabs >= acca || acca >= accb) { zdotw = 0.0; }
-                                vmultd[k] = zdotw / zdota[k];
-                                if (k >= 2) {
-                                    kk = iact[k];
-                                    for (i = 1; i <= n; ++i) { dxnew[i] -= vmultd[k] * a[i][kk]; }
+                                if (dd <= 0.0) {
+                                    break L_60;
                                 }
-                            } while (k-- >= 2);
-                            if (mcon > m) { vmultd[nact] = Math.max(0.0, vmultd[nact]); }
-                        //}
+                                temp = Math.sqrt(ss * dd);
+                                if (Math.abs(sd) >= 1.0E-6 * temp) {
+                                    temp = Math.sqrt(ss * dd + sd * sd);
+                                }
+                                stpful = dd / (temp + sd);
+                                step = stpful;
+                                if (mcon === m) {
+                                    acca = step + 0.1 * resmax;
+                                    accb = step + 0.2 * resmax;
+                                    if (step >= acca || acca >= accb) {
+                                        break L_70;
+                                    }
+                                    step = Math.min(step, resmax);
+                                }
 
-                        //     Complete VMULTC by finding the new constraint residuals.
-
-                        for (k = 1; k <= n; ++k) { dxnew[k] = dx[k] + step * sdirn[k]; }
-                        if (mcon > nact) {
-                            kl = nact + 1;
-                            for (k = kl; k <= mcon; ++k) {
-                                kk = iact[k];
-                                total = resmax - b[kk];
-                                sumabs = resmax + Math.abs(b[kk]);
-                                for (i = 1; i <= n; ++i) {
-                                    temp = a[i][kk] * dxnew[i];
-                                    total += temp;
-                                    sumabs += Math.abs(temp);
+                                //     Set DXNEW to the new variables if STEP is the steplength, and reduce
+                                //     RESMAX to the corresponding maximum residual if stage one is being done.
+                                //     Because DXNEW will be changed during the calculation of some Lagrange
+                                //     multipliers, it will be restored to the following value later.
+                                for (k = 1; k <= n; ++k) {
+                                    dxnew[k] = dx[k] + step * sdirn[k];
                                 }
-                                acca = sumabs + 0.1 * Math.abs(total);
-                                accb = sumabs + 0.2 * Math.abs(total);
-                                if (sumabs >= acca || acca >= accb) { total = 0.0; }
-                                vmultd[k] = total;
-                            }
+                                if (mcon === m) {
+                                    resold = resmax;
+                                    resmax = 0.0;
+                                    for (k = 1; k <= nact; ++k) {
+                                        kk = iact[k];
+                                        // temp = b[kk] - this.DOT_PRODUCT(this.PART(this.COL(a, kk), 1, n), this.PART(dxnew, 1, n));
+                                        temp = b[kk] - this.DOT_PRODUCT_ROW_COL(dxnew, -1, a, kk, 1, n);
+                                        resmax = Math.max(resmax, temp);
+                                    }
+                                }
+
+                                //     Set VMULTD to the VMULTC vector that would occur if DX became DXNEW. A
+                                //     device is included to force VMULTD(K) = 0.0 if deviations from this value
+                                //     can be attributed to computer rounding errors. First calculate the new
+                                //     Lagrange multipliers.
+                                //{
+                                k = nact;
+                                do {
+                                    zdotw = 0.0;
+                                    zdwabs = 0.0;
+                                    for (i = 1; i <= n; ++i) {
+                                        temp = z[i][k] * dxnew[i];
+                                        zdotw += temp;
+                                        zdwabs += Math.abs(temp);
+                                    }
+                                    acca = zdwabs + 0.1 * Math.abs(zdotw);
+                                    accb = zdwabs + 0.2 * Math.abs(zdotw);
+                                    if (zdwabs >= acca || acca >= accb) {
+                                        zdotw = 0.0;
+                                    }
+                                    vmultd[k] = zdotw / zdota[k];
+                                    if (k >= 2) {
+                                        kk = iact[k];
+                                        for (i = 1; i <= n; ++i) {
+                                            dxnew[i] -= vmultd[k] * a[i][kk];
+                                        }
+                                    }
+                                } while (k-- >= 2);
+                                if (mcon > m) {
+                                    vmultd[nact] = Math.max(0.0, vmultd[nact]);
+                                }
+                                //}
+
+                                //     Complete VMULTC by finding the new constraint residuals.
+
+                                for (k = 1; k <= n; ++k) {
+                                    dxnew[k] = dx[k] + step * sdirn[k];
+                                }
+                                if (mcon > nact) {
+                                    kl = nact + 1;
+                                    for (k = kl; k <= mcon; ++k) {
+                                        kk = iact[k];
+                                        total = resmax - b[kk];
+                                        sumabs = resmax + Math.abs(b[kk]);
+                                        for (i = 1; i <= n; ++i) {
+                                            temp = a[i][kk] * dxnew[i];
+                                            total += temp;
+                                            sumabs += Math.abs(temp);
+                                        }
+                                        acca = sumabs + 0.1 * Math.abs(total);
+                                        accb = sumabs + 0.2 * Math.abs(total);
+                                        if (sumabs >= acca || acca >= accb) {
+                                            total = 0.0;
+                                        }
+                                        vmultd[k] = total;
+                                    }
+                                }
+
+                                //     Calculate the fraction of the step from DX to DXNEW that will be taken.
+
+                                ratio = 1.0;
+                                icon = 0;
+                                for (k = 1; k <= mcon; ++k) {
+                                    if (vmultd[k] < 0.0) {
+                                        temp = vmultc[k] / (vmultc[k] - vmultd[k]);
+                                        if (temp < ratio) {
+                                            ratio = temp;
+                                            icon = k;
+                                        }
+                                    }
+                                }
+
+                                //     Update DX, VMULTC and RESMAX.
+
+                                temp = 1.0 - ratio;
+                                for (k = 1; k <= n; ++k) {
+                                    dx[k] = temp * dx[k] + ratio * dxnew[k];
+                                }
+                                for (k = 1; k <= mcon; ++k) {
+                                    vmultc[k] = Math.max(0.0, temp * vmultc[k] + ratio * vmultd[k]);
+                                }
+                                if (mcon === m) {
+                                    resmax = resold + ratio * (resmax - resold);
+                                }
+
+                                //     If the full step is not acceptable then begin another iteration.
+                                //     Otherwise switch to stage two or end the calculation.
+                            } while (icon > 0);
+
+                        if (step === stpful) {
+                            return true;
                         }
 
-                        //     Calculate the fraction of the step from DX to DXNEW that will be taken.
-
-                        ratio = 1.0;
-                        icon = 0;
-                        for (k = 1; k <= mcon; ++k) {
-                            if (vmultd[k] < 0.0) {
-                                temp = vmultc[k] / (vmultc[k] - vmultd[k]);
-                                if (temp < ratio) {
-                                    ratio = temp;
-                                    icon = k;
-                                }
-                            }
-                        }
-
-                        //     Update DX, VMULTC and RESMAX.
-
-                        temp = 1.0 - ratio;
-                        for (k = 1; k <= n; ++k) { dx[k] = temp * dx[k] + ratio * dxnew[k]; }
-                        for (k = 1; k <= mcon; ++k) {
-                            vmultc[k] = Math.max(0.0, temp * vmultc[k] + ratio * vmultd[k]);
-                        }
-                        if (mcon === m) { resmax = resold + ratio * (resmax - resold); }
-
-                        //     If the full step is not acceptable then begin another iteration.
-                        //     Otherwise switch to stage two or end the calculation.
-                    } while (icon > 0);
-
-                    if (step === stpful) {
-                        return true;
-                    }
-
-                } while (true);
+                    } while (true);
 
                 //     We employ any freedom that may be available to reduce the objective
                 //     function before returning a DX whose length is less than RHO.
@@ -12980,12 +13060,16 @@ define('math/nlp',['jxg'], function (JXG) {
             return false;
         },
 
-        PrintIterationResult: function(nfvals, f, resmax,  x,  n, iprint) {
-            if (iprint > 1) { console.log("NFVALS = "+nfvals+"  F = "+f+"  MAXCV = "+resmax); }
-            if (iprint > 1) { console.log("X = " + this.PART(x, 1, n)); }
+        PrintIterationResult: function (nfvals, f, resmax, x, n, iprint) {
+            if (iprint > 1) {
+                console.log("NFVALS = " + nfvals + "  F = " + f + "  MAXCV = " + resmax);
+            }
+            if (iprint > 1) {
+                console.log("X = " + this.PART(x, 1, n));
+            }
         },
 
-        ROW: function(src, rowidx) {
+        ROW: function (src, rowidx) {
             return src[rowidx].slice();
             // var col,
             //     cols = src[0].length,
@@ -12997,17 +13081,18 @@ define('math/nlp',['jxg'], function (JXG) {
             // return dest;
         },
 
-        COL: function(src, colidx) {
+        COL: function (src, colidx) {
             var row,
                 rows = src.length,
-                dest = this.arr(rows);
+                dest = []; // this.arr(rows);
+
             for (row = 0; row < rows; ++row) {
                 dest[row] = src[row][colidx];
             }
             return dest;
         },
 
-        PART: function(src, from, to) {
+        PART: function (src, from, to) {
             return src.slice(from, to + 1);
             // var srcidx,
             //     dest = this.arr(to - from + 1),
@@ -13018,7 +13103,7 @@ define('math/nlp',['jxg'], function (JXG) {
             // return dest;
         },
 
-        FORMAT: function(x) {
+        FORMAT: function (x) {
             return x.join(',');
             // var i, fmt = "";
             // for (i = 0; i < x.length; ++i) {
@@ -13027,12 +13112,38 @@ define('math/nlp',['jxg'], function (JXG) {
             // return fmt;
         },
 
-        DOT_PRODUCT: function(lhs,  rhs) {
+        DOT_PRODUCT: function (lhs, rhs) {
             var i, sum = 0.0,
                 len = lhs.length;
             for (i = 0; i < len; ++i) {
                 sum += lhs[i] * rhs[i];
             }
+            return sum;
+        },
+
+        DOT_PRODUCT_ROW_COL: function (lhs, row, rhs, col, start, end) {
+            var i, sum = 0.0;
+
+            if (row === -1) {
+                // lhs is vector
+                for (i = start; i <= end; ++i) {
+                    sum += lhs[i] * rhs[i][col];
+                }
+            } else {
+                // lhs is row of matrix
+                if (col === -1) {
+                    // rhs is vector
+                    for (i = start; i <= end; ++i) {
+                        sum += lhs[row][i] * rhs[i];
+                    }
+                } else {
+                    // rhs is column of matrix
+                    for (i = start; i <= end; ++i) {
+                        sum += lhs[row][i] * rhs[i][col];
+                    }
+                }
+            }
+
             return sum;
         }
 
@@ -14705,6 +14816,208 @@ define('math/geometry',[
             return r;
         },
 
+        /**
+         * Determinant of three points in the Euclidean plane.
+         * Zero, if the points are collinear. Used to determine of a point q is left or
+         * right to a segment defined by points p1 and p2.
+         *
+         * @param  {Array} p1 Coordinates of the first point of the segment. Array of length 3. First coordinate is equal to 1.
+         * @param  {Array} p2 Coordinates of the second point of the segment. Array of length 3. First coordinate is equal to 1.
+         * @param  {Array} q Coordinates of the point. Array of length 3. First coordinate is equal to 1.
+         * @return {Number} Signed area of the triangle formed by these three points.
+         *
+         * @see #windingNumber
+         */
+        det3p: function(p1, p2, q) {
+            return (p1[1] - q[1]) * (p2[2] - q[2]) - (p2[1] - q[1]) * (p1[2] - q[2]);
+        },
+
+        /**
+         * Winding number of a point in respect to a polygon path.
+         *
+         * The point is regarded outside if the winding number is zero,
+         * inside otherwise. The algorithm tries to find degenerate cases, i.e.
+         * if the point is on the path. This is regarded as "outside".
+         * If the point is a vertex of the path, it is regarded as "inside".
+         *
+         * Implementation of algorithm 7 from "The point in polygon problem for
+         * arbitrary polygons" by Kai Hormann and Alexander Agathos, Computational Geometry,
+         * Volume 20, Issue 3, November 2001, Pages 131-144.
+         *
+         * @param  {Array} usrCoords Homogenous coordinates of the point
+         * @param  {Array} path      Array of points / coords determining a path, i.e. the vertices of the polygon / path. The array elements
+         * do not have to be full points, but have to have a subobject "coords" or should be of type JXG.Coords.
+         * @param  {Boolean} [doNotClosePath=false] If true the last point of the path is not connected to the first point.
+         * This is necessary if the path consists of two or more closed subpaths, e.g. if the figure has a hole.
+         *
+         * @return {Number}          Winding number of the point. The point is
+         *                           regarded outside if the winding number is zero,
+         *                           inside otherwise.
+         */
+        windingNumber: function(usrCoords, path, doNotClosePath) {
+            var wn = 0,
+                le = path.length,
+                x = usrCoords[1],
+                y = usrCoords[2],
+                p0, p1, p2, d, sign, i, off = 0;
+
+            if (le === 0) {
+                return 0;
+            }
+
+            doNotClosePath = doNotClosePath || false;
+            if (doNotClosePath) {
+                off = 1;
+            }
+
+            // Infinite points are declared outside
+            if (isNaN(x) || isNaN(y)) {
+                return 1;
+            }
+
+            if (Type.exists(path[0].coords)) {
+                p0 = path[0].coords;
+                p1 = path[le - 1].coords;
+            } else {
+                p0 = path[0];
+                p1 = path[le - 1];
+            }
+            // Handle the case if the point is the first vertex of the path, i.e. inside.
+            if (p0.usrCoords[1] === x && p0.usrCoords[2] === y) {
+                return 1;
+            }
+
+            for (i = 0; i < le - off; i++) {
+                // Consider the edge from p1 = path[i] to p2 = path[i+1]isClosedPath
+                if (Type.exists(path[i].coords)) {
+                    p1 = path[i].coords.usrCoords;
+                    p2 = path[(i + 1) % le].coords.usrCoords;
+                } else {
+                    p1 = path[i].usrCoords;
+                    p2 = path[(i + 1) % le].usrCoords;
+                }
+
+                // If one of the two points p1, p2 is undefined or infinite,
+                // move on.
+                if (p1[0] === 0 || p2[0] === 0 ||
+                    isNaN(p1[1]) || isNaN(p2[1]) ||
+                    isNaN(p1[2]) || isNaN(p2[2])) {
+                    continue;
+                }
+
+                if (p2[2] === y) {
+                    if (p2[1] === x) {
+                        return 1;
+                    }
+                    if (p1[2] === y && ((p2[1] > x) === (p1[1] < x))) {
+                        return 0;
+                    }
+                }
+
+                if ((p1[2] < y) !== (p2[2] < y)) {                        // Crossing
+                    sign = 2 * ((p2[2] > p1[2]) ? 1 : 0) - 1;
+                    if (p1[1] >= x) {
+                        if (p2[1] > x) {
+                            wn += sign;
+                        } else {
+                            d = this.det3p(p1, p2, usrCoords);
+                            if (d === 0) {  // Point is on line, i.e. outside
+                                return 0;
+                            }
+                            if ((d > 0 + Mat.eps) === (p2[2] > p1[2])) {  // Right crossing
+                                wn += sign;
+                            }
+                        }
+                    } else {
+                        if (p2[1] > x) {
+                            d = this.det3p(p1, p2, usrCoords);
+                            if ((d > 0 + Mat.eps) === (p2[2] > p1[2])) {  // Right crossing
+                                wn += sign;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return wn;
+        },
+
+        /**
+         * Decides if a point (x,y) is inside of a path / polygon.
+         * Does not work correct if the path has hole. In this case, windingNumber is the preferred method.
+         * Implements W. Randolf Franklin's pnpoly method.
+         *
+         * See <a href="https://wrf.ecse.rpi.edu/Research/Short_Notes/pnpoly.html">https://wrf.ecse.rpi.edu/Research/Short_Notes/pnpoly.html</a>.
+         *
+         * @param {Number} x_in x-coordinate (screen or user coordinates)
+         * @param {Number} y_in y-coordinate (screen or user coordinates)
+         * @param  {Array} path  Array of points / coords determining a path, i.e. the vertices of the polygon / path. The array elements
+         * do not have to be full points, but have to have a subobject "coords" or should be of type JXG.Coords.
+         * @param {Number} [coord_type=JXG.COORDS_BY_SCREEN] Type of coordinates used here.
+         *   Possible values are <b>JXG.COORDS_BY_USER</b> and <b>JXG.COORDS_BY_SCREEN</b>.
+         *   Default value is JXG.COORDS_BY_SCREEN.
+         *
+         * @returns {Boolean} if (x_in, y_in) is inside of the polygon.
+         * @see JXG.Polygon.hasPoint
+         * @see JXG.Polygon.pnpoly
+         * @see #windingNumber
+         *
+         * @example
+         * var pol = board.create('polygon', [[-1,2], [2,2], [-1,4]]);
+         * var p = board.create('point', [4, 3]);
+         * var txt = board.create('text', [-1, 0.5, function() {
+         *   return 'Point A is inside of the polygon = ' +
+         *     JXG.Math.Geometry.pnpoly(p.X(), p.Y(), JXG.COORDS_BY_USER, pol.vertices);
+         * }]);
+         *
+         * </pre><div id="JXG4656ed42-f965-4e35-bb66-c334a4529683" class="jxgbox" style="width: 300px; height: 300px;"></div>
+         * <script type="text/javascript">
+         *     (function() {
+         *         var board = JXG.JSXGraph.initBoard('JXG4656ed42-f965-4e35-bb66-c334a4529683',
+         *             {boundingbox: [-2, 5, 5,-2], axis: true, showcopyright: false, shownavigation: false});
+         *     var pol = board.create('polygon', [[-1,2], [2,2], [-1,4]]);
+         *     var p = board.create('point', [4, 3]);
+         *     var txt = board.create('text', [-1, 0.5, function() {
+         *     		return 'Point A is inside of the polygon = ' + JXG.Math.Geometry.pnpoly(p.X(), p.Y(), JXG.COORDS_BY_USER, pol.vertices);
+         *     }]);
+         *
+         *     })();
+         *
+         * </script><pre>
+         *
+         */
+        pnpoly: function(x_in, y_in, path, coord_type) {
+            var i, j, len,
+                x, y, crds,
+                v = path,
+                vi, vj,
+                isIn = false;
+
+            if (coord_type === Const.COORDS_BY_USER) {
+                crds = new Coords(Const.COORDS_BY_USER, [x_in, y_in], this.board);
+                x = crds.scrCoords[1];
+                y = crds.scrCoords[2];
+            } else {
+                x = x_in;
+                y = y_in;
+            }
+
+            len = path.length;
+            for (i = 0, j = len - 2; i < len - 1; j = i++) {
+                vi = (Type.exists(v[i].coords)) ? v[i].coords : v[i];
+                vj = (Type.exists(v[j].coords)) ? v[j].coords : v[j];
+
+                if (((vi.scrCoords[2] > y) !== (vj.scrCoords[2] > y)) &&
+                    (x < (vj.scrCoords[1] - vi.scrCoords[1]) *
+                    (y - vi.scrCoords[2]) / (vj.scrCoords[2] - vi.scrCoords[2]) + vi.scrCoords[1])
+                   ) {
+                    isIn = !isIn;
+                }
+            }
+
+            return isIn;
+        },
+
         /****************************************/
         /****          INTERSECTIONS         ****/
         /****************************************/
@@ -16229,7 +16542,7 @@ define('math/geometry',[
                 for (i = 0; i < steps; i++) {
                     f_new = minfunc(t_new);
 
-                    if (f_new < f_old || f_old === Infinity) {
+                    if (f_new < f_old || f_old === Infinity || isNaN(f_old)) {
                         t = t_new;
                         f_old = f_new;
                     }
@@ -16494,7 +16807,6 @@ define('math/geometry',[
             return p;
         },
 
-
         meetPlanePlane: function (v11, v12, v21, v22) {
             var i, no1, no2,
                 v = [0, 0, 0],
@@ -16554,7 +16866,7 @@ define('math/geometry',[
                 return [s1, e1, s2, e2];
             }
             return null;
-        },
+        }
 
     });
 
@@ -21600,114 +21912,6 @@ define('math/clip',[
         },
 
         /**
-         * Determinant of three points in the Euclidean plane.
-         * Zero, if the points are collinear. Used to determine of a point q is left or
-         * right to a segment defined by points p1 and p2.
-         * @private
-         * @param  {Array} p1 Coordinates of the first point of the segment. Array of length 3. First coordinate is equal to 1.
-         * @param  {Array} p2 Coordinates of the second point of the segment. Array of length 3. First coordinate is equal to 1.
-         * @param  {Array} q Coordinates of the point. Array of length 3. First coordinate is equal to 1.
-         * @return {Number} Signed area of the triangle formed by these three points.
-         */
-        det: function(p1, p2, q) {
-            return (p1[1] - q[1]) * (p2[2] - q[2]) - (p2[1] - q[1]) * (p1[2] - q[2]);
-        },
-
-        /**
-         * Winding number of a point in respect to a polygon path.
-         *
-         * The point is regarded outside if the winding number is zero,
-         * inside otherwise. The algorithm tries to find degenerate cases, i.e.
-         * if the point is on the path. This is regarded as "outside".
-         * If the point is a vertex of the path, it is regarded as "inside".
-         *
-         * Implementation of algorithm 7 from "The point in polygon problem for
-         * arbitrary polygons" by Kai Hormann and Alexander Agathos, Computational Geometry,
-         * Volume 20, Issue 3, November 2001, Pages 131-144.
-         *
-         * @param  {Array} usrCoords Homogenous coordinates of the point
-         * @param  {Array} path      Array of points determining a path, i.e. the vertices of the polygon. The array elements
-         * do not have to be full points, but have to have a subobject "coords".
-         * @return {Number}          Winding number of the point. The point is
-         *                           regarded outside if the winding number is zero,
-         *                           inside otherwise.
-         */
-        windingNumber: function(usrCoords, path) {
-            var wn = 0,
-                le = path.length,
-                x = usrCoords[1],
-                y = usrCoords[2],
-                p1, p2, d, sign, i;
-
-            if (le === 0) {
-                return 0;
-            }
-
-            // Infinite points are declared outside
-            if (isNaN(x) || isNaN(y)) {
-                return 1;
-            }
-
-            // Handle the case if the point is a vertex of the path
-            if (path[0].coords.usrCoords[1] === x &&
-                path[0].coords.usrCoords[2] === y) {
-
-                // console.log('<<<<<<< Vertex 1');
-                return 1;
-            }
-
-            for (i = 0; i < le; i++) {
-                // Consider the edge from p1 = path[i] to p2 = path[i+1]
-                p1 = path[i].coords.usrCoords;
-                p2 = path[(i + 1) % le].coords.usrCoords;
-                if (p1[0] === 0 || p2[0] === 0 ||
-                    isNaN(p1[1]) || isNaN(p2[1]) ||
-                    isNaN(p1[2]) || isNaN(p2[2])) {
-
-                    continue;
-                }
-
-                if (p2[2] === y) {
-                    if (p2[1] === x) {
-                        // console.log('<<<<<<< Vertex 2');
-                        return 1;
-                    }
-                    if (p1[2] === y && ((p2[1] > x) === (p1[1] < x))) {
-                        // console.log('<<<<<<< Edge 1', p1, p2, [x, y]);
-                        return 0;
-                    }
-                }
-
-                if ((p1[2] < y) !== (p2[2] < y)) {
-                    sign = 2 * ((p2[2] > p1[2]) ? 1 : 0) - 1;
-                    if (p1[1] >= x) {
-                        if (p2[1] > x) {
-                            wn += sign;
-                        } else {
-                            d = this.det(p1, p2, usrCoords);
-                            if (d === 0) {
-                                // console.log('<<<<<<< Edge 2');
-                                return 0;
-                            }
-                            if ((d > 0) === (p2[2] > p1[2])) {
-                                wn += sign;
-                            }
-                        }
-                    } else {
-                        if (p2[1] > x) {
-                            d = this.det(p1, p2, usrCoords);
-                            if ((d > 0 + Mat.eps) === (p2[2] > p1[2])) {
-                                wn += sign;
-                            }
-                        }
-                    }
-                }
-            }
-
-            return wn;
-        },
-
-        /**
          * JavaScript object containing the intersection of two paths. Every intersection point is on one path, but
          * comes with a neighbour point having the same coordinates and being on the other path.
          *
@@ -22128,9 +22332,9 @@ define('math/clip',[
          * @private
          */
         _getPosition: function(q, p1, p2, p3) {
-            var s1 = this.det(q, p1, p2),
-                s2 = this.det(q, p2, p3),
-                s3 = this.det(p1, p2, p3);
+            var s1 = Geometry.det3p(q, p1, p2),
+                s2 = Geometry.det3p(q, p2, p3),
+                s3 = Geometry.det3p(p1, p2, p3);
 
             // Left turn
             if (s3 >= 0) {
@@ -22160,7 +22364,7 @@ define('math/clip',[
          */
         _classifyDegenerateIntersections: function(P) {
             var Pp, Pm, Qp, Qm, Q, side,
-                cnt, tmp,
+                cnt, tmp, det,
                 oppositeDir,
                 s1, s2, s3, s4,
                 DEBUG = false;
@@ -22168,6 +22372,7 @@ define('math/clip',[
             if (DEBUG) {
                 console.log("\n-------------- _classifyDegenerateIntersections()", (Type.exists(P.data))?P.data.pathname:' ');
             }
+            det = Geometry.det3p;
             cnt = 0;
             P._tours = 0;
             while (true) {
@@ -22210,20 +22415,20 @@ define('math/clip',[
                         console.log("Pp", this._getPosition(Pp,  Qm, Q.coords.usrCoords, Qp));
                     }
 
-                    s1 = this.det(P.coords.usrCoords, Pm, Qm);
-                    s2 = this.det(P.coords.usrCoords, Pp, Qp);
-                    s3 = this.det(P.coords.usrCoords, Pm, Qp);
-                    s4 = this.det(P.coords.usrCoords, Pp, Qm);
+                    s1 = det(P.coords.usrCoords, Pm, Qm);
+                    s2 = det(P.coords.usrCoords, Pp, Qp);
+                    s3 = det(P.coords.usrCoords, Pm, Qp);
+                    s4 = det(P.coords.usrCoords, Pp, Qm);
 
                     if (s1 === 0 && s2 === 0 && s3 === 0 && s4 === 0) {
                         P.coords.usrCoords[1] *= 1 + Math.random() * Mat.eps;
                         P.coords.usrCoords[2] *= 1 + Math.random() * Mat.eps;
                         Q.coords.usrCoords[1] = P.coords.usrCoords[1];
                         Q.coords.usrCoords[2] = P.coords.usrCoords[2];
-                        s1 = this.det(P.coords.usrCoords, Pm, Qm);
-                        s2 = this.det(P.coords.usrCoords, Pp, Qp);
-                        s3 = this.det(P.coords.usrCoords, Pm, Qp);
-                        s4 = this.det(P.coords.usrCoords, Pp, Qm);
+                        s1 = det(P.coords.usrCoords, Pm, Qm);
+                        s2 = det(P.coords.usrCoords, Pp, Qp);
+                        s3 = det(P.coords.usrCoords, Pm, Qp);
+                        s4 = det(P.coords.usrCoords, Pp, Qm);
                         if (DEBUG) {
                             console.log("Random shift", P.coords.usrCoords);
                             console.log(s1, s2, s3, s4, s2 === 0);
@@ -22425,14 +22630,14 @@ define('math/clip',[
          */
         _handleFullyDegenerateCase: function(S, C, board) {
             var P, Q, l, M, crds, q1, q2, node,
-                i, j, le, le2, is_on_Q,
+                i, j, leP, leQ, is_on_Q, tmp,
                 is_fully_degenerated,
                 arr = [S, C];
 
             for (l = 0; l < 2; l++) {
                 P = arr[l];
-                le = P.length;
-                for (i = 0, is_fully_degenerated = true; i < le; i++) {
+                leP = P.length;
+                for (i = 0, is_fully_degenerated = true; i < leP; i++) {
                     if (!P[i].intersection) {
                         is_fully_degenerated = false;
                         break;
@@ -22442,22 +22647,23 @@ define('math/clip',[
                 if (is_fully_degenerated) {
                     // All nodes of P are also on the other path.
                     Q = arr[(l + 1) % 2];
-                    le2 = Q.length;
+                    leQ = Q.length;
 
                     // We search for a midpoint of one edge of P which is not the other path and
                     // we add that midpoint to P.
-                    for (i = 0; i < le; i++) {
+                    for (i = 0; i < leP; i++) {
                         q1 = P[i].coords.usrCoords;
-                        q2 = P[(i + 1) % le].coords.usrCoords;
-                        // M id the midpoint
+                        q2 = P[i]._next.coords.usrCoords;
+
+                        // M is the midpoint
                         M = [(q1[0] +  q2[0]) * 0.5,
                              (q1[1] +  q2[1]) * 0.5,
                              (q1[2] +  q2[2]) * 0.5];
 
                         // Test if M is on path Q. If this is not the case,
                         // we take M as additional point of P.
-                        for (j = 0, is_on_Q = false; j < le2; j++) {
-                            if (Math.abs(this.det(Q[j].coords.usrCoords, Q[(j + 1) % le2].coords.usrCoords, M)) < Mat.eps) {
+                        for (j = 0, is_on_Q = false; j < leQ; j++) {
+                            if (Math.abs(Geometry.det3p(Q[j].coords.usrCoords, Q[(j + 1) % leQ].coords.usrCoords, M)) < Mat.eps) {
                                 is_on_Q = true;
                                 break;
                             }
@@ -22471,10 +22677,14 @@ define('math/clip',[
                                     coords: crds,
                                     elementClass: Const.OBJECT_CLASS_POINT
                                 };
+
+                            tmp = P[i]._next;
                             P[i]._next = node;
                             node._prev = P[i];
-                            P[(i + 1) % le]._prev = node;
-                            node._next = P[(i + 1) % le];
+                            node._next = tmp;
+                            tmp._prev = node;
+
+
                             if (P[i]._end) {
                                 P[i]._end = false;
                                 node._end = true;
@@ -22495,12 +22705,14 @@ define('math/clip',[
                 }
                 P = P._next;
             }
-            if (this.windingNumber(P.coords.usrCoords, path) % 2 === 0) {
+            if (Geometry.windingNumber(P.coords.usrCoords, path) === 0) {
                 // Outside
                 status = 'entry';
+                // console.log(P.coords.usrCoords, ' is outside')
             } else {
                 // Inside
                 status = 'exit';
+                // console.log(P.coords.usrCoords, ' is inside')
             }
 
             return [P, status];
@@ -22950,10 +23162,10 @@ define('math/clip',[
             }
 
             // Test if one curve is contained by the other
-            if (this.windingNumber(P.coords.usrCoords, C) === 0) {
+            if (Geometry.windingNumber(P.coords.usrCoords, C) === 0) {
                 // P is outside of C:
                 // Either S is disjoint from C or C is inside of S
-                if (this.windingNumber(Q.coords.usrCoords, S) !== 0) {
+                if (Geometry.windingNumber(Q.coords.usrCoords, S) !== 0) {
                     // C is inside of S, i.e. C subset of S
 
                     if (clip_type === 'union') {
@@ -25529,6 +25741,7 @@ define('options',[
              * @name JXG.Board#showNavigation
              * @type Boolean
              * @default true
+             * @see JXG.AbstractRenderer#drawZoomBar
              */
             showNavigation: true,
 
@@ -25539,6 +25752,7 @@ define('options',[
              * @name JXG.Board#showZoom
              * @type Boolean
              * @default true
+             * @see JXG.AbstractRenderer#drawZoomBar
              */
             showZoom: true,
 
@@ -25549,6 +25763,7 @@ define('options',[
              * @name JXG.Board#showReload
              * @type Boolean
              * @default false
+             * @see JXG.AbstractRenderer#drawZoomBar
              */
             showReload: false,
 
@@ -25558,6 +25773,7 @@ define('options',[
              * @name JXG.Board#showScreenshot
              * @type Boolean
              * @default false
+             * @see JXG.AbstractRenderer#drawZoomBar
              */
             showScreenshot: false,
 
@@ -25590,6 +25806,8 @@ define('options',[
              * @type Boolean
              * @see JXG.Board#fullscreen
              * @default false
+             * @see JXG.AbstractRenderer#drawZoomBar
+             * @see JXG.AbstractRenderer#drawZoomBar
              */
             showFullscreen: false,
 
@@ -25598,7 +25816,8 @@ define('options',[
              * controls if the icon is shown.
              * The following attribute(s) can be set:
              * <ul>
-             *  <li>symbol (String): Unicode symbol which is shown in the navigation bar. Default: '\u25a1'
+             *  <li>symbol (String): Unicode symbol which is shown in the navigation bar.  Default: svg code for '\u26f6', other
+             * possibilities are the unicode symbols '\u26f6' and '\u25a1'. However, '\u26f6' is not supported by MacOS and iOS.
              *  <li>id (String): Id of the HTML element which is brought to full screen or null if the JSXgraph div is taken.
              * It may be an outer div element, e.g. if the old aspect ratio trick is used. Default: null, i.e. use the JSXGraph div.
              * </ul>
@@ -25630,11 +25849,14 @@ define('options',[
              * </script><pre>
              *
              * @name JXG.Board#fullscreen
+             * @default svg code
              * @see JXG.Board#showFullscreen
+             * @see JXG.AbstractRenderer#drawZoomBar
              * @type Object
              */
             fullscreen: {
-                symbol: '\u25a1', // '\u26f6' (not supported by MacOS), // '\u25a1'
+                symbol: '<svg height="1em" width="1em" version="1.1" viewBox="10 10 18 18"><path fill="#666" d="m 10,16 2,0 0,-4 4,0 0,-2 L 10,10 l 0,6 0,0 z"></path><path fill="#666" d="m 20,10 0,2 4,0 0,4 2,0 L 26,10 l -6,0 0,0 z"></path><path fill="#666" d="m 24,24 -4,0 0,2 L 26,26 l 0,-6 -2,0 0,4 0,0 z"></path><path fill="#666" d="M 12,20 10,20 10,26 l 6,0 0,-2 -4,0 0,-4 0,0 z"></path></svg>', 
+                    // '\u25a1', // '\u26f6' (not supported by MacOS),
                 id: null
             },
 
@@ -25644,6 +25866,7 @@ define('options',[
              * @name JXG.Board#showClearTraces
              * @type Boolean
              * @default false
+             * @see JXG.AbstractRenderer#drawZoomBar
              */
             showClearTraces: false,
 
@@ -26619,6 +26842,8 @@ define('options',[
              */
             shadow: false,
 
+            shadowColor: 'black',
+
             /**
              * If true the element will be traced, i.e. on every movement the element will be copied
              * to the background. Use {@link JXG.GeometryElement#clearTrace} to delete the trace elements.
@@ -26685,13 +26910,32 @@ define('options',[
              * <p>
              * In case the element is a polygon or line and it has the attribute "scalable:false",
              * moving the element with two fingers results in a rotation or translation.
+             * <p>
+             * If an element is set to be neither scalable nor rotatable, it can only be translated.
              *
              * @type Boolean
              * @default true
              * @name JXG.GeometryElement#scalable
              * @see JXG.Ticks#fixed
+             * @see JXG.GeometryElement#rotatable
              */
             scalable: true,
+
+            /**
+             * Determines whether two-finger manipulation may rotate this object.
+             * If set to false, the object can only be scaled and translated.
+             * <p>
+             * In case the element is a polygon or line and it has the attribute "rotatable:false",
+             * moving the element with two fingers results in a rotation or translation.
+             * <p>
+             * If an element is set to be neither scalable nor rotatable, it can only be translated.
+             *
+             * @type Boolean
+             * @default true
+             * @name JXG.GeometryElement#rotatable
+             * @see JXG.GeometryElement#scalable
+             */
+            rotatable: true,
 
             /**
              * If the element is dragged it will be moved on mousedown or touchstart to the
@@ -26764,6 +27008,7 @@ define('options',[
 
             /**
              * Controls if an element can get the focus with the tab key.
+             * tabindex corresponds to the HTML attribute of the same name.
              * See <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/tabindex">descriptiona at MDN</a>.
              * The additional value null completely disables focus of an element.
              * The value will be ignored if keyboard control of the board is not enabled or
@@ -26793,6 +27038,8 @@ define('options',[
             /**
              * A function that expects two {@link JXG.Coords}, the first one representing the coordinates of the
              * tick that is to be labeled, the second one the coordinates of the center (the tick with position 0).
+             * The third parameter is a null, number or a string. In the latter two cases, this value is taken.
+             * Returns a string.
              *
              * @type function
              * @name Ticks#generateLabelText
@@ -26803,7 +27050,7 @@ define('options',[
              * A function that expects two {@link JXG.Coords}, the first one representing the coordinates of the
              * tick that is to be labeled, the second one the coordinates of the center (the tick with position 0).
              *
-             * @deprecated Use {@link JGX.Options@generateLabelValue}
+             * @deprecated Use {@link JGX.Options@generateLabelText}
              * @type function
              * @name Ticks#generateLabelValue
              */
@@ -27002,6 +27249,67 @@ define('options',[
             minorTicks: 4,
 
             /**
+             * By default, i.e. if ticksPerLabel==false, labels are generated for major ticks, only.
+             * If ticksPerLabel is set to a(n integer) number, this denotes the number of minor ticks
+             * between two labels.
+             *
+             * @type {Number|Boolean}
+             * @name Ticks#ticksPerLabel
+             * @default false
+             *
+             * @example
+             * const board = JXG.JSXGraph.initBoard('jxgbox', {
+             *     boundingbox: [-4, 4, 4, -4],
+             *     axis: true,
+             *     defaultAxes: {
+             *         x: {
+             *             ticks: {
+             *                 minorTicks: 7,
+             *                 ticksPerLabel: 4,
+             *                 minorHeight: 20,
+             *             }
+             *         },
+             *         y: {
+             *             ticks: {
+             *                 minorTicks: 3,
+             *                 ticksPerLabel: 2,
+             *                 minorHeight: 20
+             *             }
+             *         }
+             *     }
+             * });
+             *
+             * </pre><div id="JXGbc45a421-c867-4b0a-9b8d-2b2576020690" class="jxgbox" style="width: 300px; height: 300px;"></div>
+             * <script type="text/javascript">
+             *     (function() {
+             *         var board = JXG.JSXGraph.initBoard('JXGbc45a421-c867-4b0a-9b8d-2b2576020690',
+             *             {showcopyright: false, shownavigation: false,
+             *              boundingbox: [-4, 4, 4, -4],
+             *         axis: true,
+             *         defaultAxes: {
+             *             x: {
+             *                 ticks: {
+             *                     minorTicks: 7,
+             *                     ticksPerLabel: 4,
+             *                     minorHeight: 20,
+             *                 }
+             *             },
+             *             y: {
+             *                 ticks: {
+             *                     minorTicks: 3,
+             *                     ticksPerLabel: 2,
+             *                     minorHeight: 20
+             *                 }
+             *             }
+             *         }
+             *     });
+             *     })();
+             *
+             * </script><pre>
+             */
+            ticksPerLabel: false,
+
+            /**
              * Scale the ticks but not the tick labels.
              * @type Number
              * @default 1
@@ -27067,7 +27375,7 @@ define('options',[
             digits: 3,
 
             /**
-             * The default distance between two ticks. Please be aware that this value does not have
+             * The default distance (in user coordinates, not  pixels) between two ticks. Please be aware that this value does not have
              * to be used if {@link Ticks#insertTicks} is set to true.
              *
              * @type Number
@@ -28713,6 +29021,44 @@ define('options',[
              * </pre>
              * type=7 is the default for curves if firstArrow: true
              *
+             * @example
+             *     board.options.line.lastArrow = false;
+             *     board.options.line.firstArrow = {size: 10, highlightSize: 10};
+             *     board.options.line.point1 = {visible: false, withLabel: true, label: {visible: true, anchorX: 'right'}};
+             *     board.options.line.strokeWidth = 4;
+             *     board.options.line.highlightStrokeWidth = 4;
+             *
+             *     board.create('segment', [[-5,4], [3,4]], {firstArrow: {type: 1}, point1: {name: 'type:1'}});
+             *     board.create('segment', [[-5,3], [3,3]], {firstArrow: {type: 2}, point1: {name: 'type:2'}});
+             *     board.create('segment', [[-5,2], [3,2]], {firstArrow: {type: 3}, point1: {name: 'type:3'}});
+             *     board.create('segment', [[-5,1], [3,1]], {firstArrow: {type: 4}, point1: {name: 'type:4'}});
+             *     board.create('segment', [[-5,0], [3,0]], {firstArrow: {type: 5}, point1: {name: 'type:5'}});
+             *     board.create('segment', [[-5,-1], [3,-1]], {firstArrow: {type: 6}, point1: {name: 'type:6'}});
+             *     board.create('segment', [[-5,-2], [3,-2]], {firstArrow: {type: 7}, point1: {name: 'type:7'}});
+             *
+             * </pre><div id="JXGc94a93da-c942-4204-8bb6-b39726cbb09b" class="jxgbox" style="width: 300px; height: 300px;"></div>
+             * <script type="text/javascript">
+             *     (function() {
+             *         var board = JXG.JSXGraph.initBoard('JXGc94a93da-c942-4204-8bb6-b39726cbb09b',
+             *             {boundingbox: [-8, 8, 8,-8], axis: false, showcopyright: false, shownavigation: false});
+             *         board.options.line.lastArrow = false;
+             *         board.options.line.firstArrow = {size: 10, highlightSize: 10};
+             *         board.options.line.point1 = {visible: false, withLabel: true, label: {visible: true, anchorX: 'right'}};
+             *         board.options.line.strokeWidth = 4;
+             *         board.options.line.highlightStrokeWidth = 4;
+             *
+             *         board.create('segment', [[-5,4], [3,4]], {firstArrow: {type: 1}, point1: {name: 'type:1'}});
+             *         board.create('segment', [[-5,3], [3,3]], {firstArrow: {type: 2}, point1: {name: 'type:2'}});
+             *         board.create('segment', [[-5,2], [3,2]], {firstArrow: {type: 3}, point1: {name: 'type:3'}});
+             *         board.create('segment', [[-5,1], [3,1]], {firstArrow: {type: 4}, point1: {name: 'type:4'}});
+             *         board.create('segment', [[-5,0], [3,0]], {firstArrow: {type: 5}, point1: {name: 'type:5'}});
+             *         board.create('segment', [[-5,-1], [3,-1]], {firstArrow: {type: 6}, point1: {name: 'type:6'}});
+             *         board.create('segment', [[-5,-2], [3,-2]], {firstArrow: {type: 7}, point1: {name: 'type:7'}});
+             *
+             *     })();
+             *
+             * </script><pre>
+             *
              * @name Line#firstArrow
              * @see Line#lastArrow
              * @see Line#touchFirstPoint
@@ -28766,10 +29112,46 @@ define('options',[
              *              touchLastPoint: true,
              *              firstArrow: {type: 3, size: 8}
              *             });
-             *
              *     })();
              *
              * </script>
+             *
+             * @example
+             *     board.options.line.strokeWidth = 4;
+             *     board.options.line.highlightStrokeWidth = 4;
+             *     board.options.line.firstArrow = false;
+             *     board.options.line.lastArrow = {size: 10, highlightSize: 10};
+             *     board.options.line.point2 = {visible: false, withLabel: true, label: {visible: true}};
+             *
+             *     board.create('segment', [[-5,4], [3,4]], {lastArrow: {type: 1}, point2: {name: 'type:1'}});
+             *     board.create('segment', [[-5,3], [3,3]], {lastArrow: {type: 2}, point2: {name: 'type:2'}});
+             *     board.create('segment', [[-5,2], [3,2]], {lastArrow: {type: 3}, point2: {name: 'type:3'}});
+             *     board.create('segment', [[-5,1], [3,1]], {lastArrow: {type: 4}, point2: {name: 'type:4'}});
+             *     board.create('segment', [[-5,0], [3,0]], {lastArrow: {type: 5}, point2: {name: 'type:5'}});
+             *     board.create('segment', [[-5,-1], [3,-1]], {lastArrow: {type: 6}, point2: {name: 'type:6'}});
+             *     board.create('segment', [[-5,-2], [3,-2]], {lastArrow: {type: 7}, point2: {name: 'type:7'}});
+             *
+             * </pre><div id="JXGca206b1c-e319-4899-8b90-778f53fd926d" class="jxgbox" style="width: 300px; height: 300px;"></div>
+             * <script type="text/javascript">
+             *     (function() {
+             *         var board = JXG.JSXGraph.initBoard('JXGca206b1c-e319-4899-8b90-778f53fd926d',
+             *             {boundingbox: [-8, 8, 8,-8], axis: false, showcopyright: false, shownavigation: false});
+             *         board.options.line.strokeWidth = 4;
+             *         board.options.line.highlightStrokeWidth = 4;
+             *         board.options.line.firstArrow = false;
+             *         board.options.line.lastArrow = {size: 10, highlightSize: 10};
+             *         board.options.line.point2 = {visible: false, withLabel: true, label: {visible: true}};
+             *
+             *         board.create('segment', [[-5,4], [3,4]], {lastArrow: {type: 1}, point2: {name: 'type:1'}});
+             *         board.create('segment', [[-5,3], [3,3]], {lastArrow: {type: 2}, point2: {name: 'type:2'}});
+             *         board.create('segment', [[-5,2], [3,2]], {lastArrow: {type: 3}, point2: {name: 'type:3'}});
+             *         board.create('segment', [[-5,1], [3,1]], {lastArrow: {type: 4}, point2: {name: 'type:4'}});
+             *         board.create('segment', [[-5,0], [3,0]], {lastArrow: {type: 5}, point2: {name: 'type:5'}});
+             *         board.create('segment', [[-5,-1], [3,-1]], {lastArrow: {type: 6}, point2: {name: 'type:6'}});
+             *         board.create('segment', [[-5,-2], [3,-2]], {lastArrow: {type: 7}, point2: {name: 'type:7'}});
+             *     })();
+             *
+             * </script><pre>
              *
              * @name Line#lastArrow
              * @see Line#firstArrow
@@ -28778,7 +29160,6 @@ define('options',[
              * @default false
              */
             lastArrow: false,
-
 
             /**
              * This number (pixel value) controls where infinite lines end at the canvas border. If zero, the line
@@ -28955,7 +29336,6 @@ define('options',[
              * @default 'butt'
              */
             lineCap: 'butt'
-
 
             /**#@-*/
         },
@@ -30897,8 +31277,10 @@ define('options',[
             display: 'html',
 
             /**
-             * Anchor element {@link Point}, {@link Text} or {@link Image} of the text. If it exists, the coordinates of the text are relative
-             * to this anchor element.
+             * Anchor element {@link Point}, {@link Text} or {@link Image} of the text.
+             * If it exists, the coordinates of the text are relative
+             * to this anchor element. In this case, only numbers are possible coordinates,
+             * functions are not supported.
              *
              * @name anchor
              * @memberOf Text.prototype
@@ -30908,8 +31290,8 @@ define('options',[
             anchor: null,
 
             /**
-             * The horizontal alignment of the text. Possible values include <tt>'auto</tt>, <tt>'left'</tt>, <tt>'middle'</tt>, and
-             * <tt>'right'</tt>.
+             * The horizontal alignment of the text. Possible values include <tt>'auto</tt>, <tt>'left'</tt>,
+             * <tt>'middle'</tt>, and <tt>'right'</tt>.
              *
              * @name anchorX
              * @memberOf Text.prototype
@@ -30921,10 +31303,11 @@ define('options',[
             /**
              * The vertical alignment of the text. Possible values include <tt>'auto</tt>, <tt>'top'</tt>, <tt>'middle'</tt>, and
              * <tt>'bottom'</tt>.
+             * For MathJax or KaTeX, 'top' is recommended.
              *
              * @name anchorY
              * @memberOf Text.prototype
-             * @default 'auto'
+             * @default 'middle'
              * @type String
              */
             anchorY: 'middle',
@@ -30935,6 +31318,7 @@ define('options',[
              * @name cssClass
              * @memberOf Text.prototype
              * @type String
+             * @default 'JXGtext'
              */
             cssClass: 'JXGtext',
 
@@ -30944,6 +31328,7 @@ define('options',[
              * @name highlightCssClass
              * @memberOf Text.prototype
              * @type String
+             * @default 'JXGtext'
              */
             highlightCssClass: 'JXGtext',
 
@@ -33233,6 +33618,13 @@ define('renderer/abstract',[
 
         /**
          * The tiny zoom bar shown on the bottom of a board (if showNavigation on board creation is true).
+         * It is a div element and gets the CSS class "JXG_navigation" and the id {board id}_navigationbar.
+         *
+         * The buttons get the CSS class "JXG_navigation_button" and the id {board_id}_name where name is
+         * one of [top, down, left, right, out, 100, in, fullscreen, screenshot, reload, cleartraces].
+         *
+         * The symbols are hard-coded.
+         *
          * @param {JXG.Board} board Reference to a JSXGraph board.
          * @param {Object} attr Attributes of the navigation bar
          *
@@ -33252,12 +33644,13 @@ define('renderer/abstract',[
                         e.cancelBubble = true;
                     }
                 },
-                createButton = function (label, handler) {
+                createButton = function (label, handler, id) {
                     var button;
 
+                    id = id || '';
+
                     button = doc.createElement('span');
-                    node.appendChild(button);
-                    button.appendChild(doc.createTextNode(label));
+                    button.innerHTML = label;  // button.appendChild(doc.createTextNode(label));
 
                     // Style settings are superseded by adding the CSS class below
                     button.style.paddingLeft = '7px';
@@ -33267,6 +33660,9 @@ define('renderer/abstract',[
                         button.classList.add('JXG_navigation_button');
                     }
                     // button.setAttribute('tabindex', 0);
+
+                    button.setAttribute('id', id);
+                    node.appendChild(button);
 
                     // Highlighting is now done with CSS
                     // Env.addEvent(button, 'mouseover', function () {
@@ -33291,7 +33687,7 @@ define('renderer/abstract',[
                 doc = board.containerObj.ownerDocument;
                 node = doc.createElement('div');
 
-                node.setAttribute('id', board.containerObj.id + '_navigationbar');
+                node.setAttribute('id', board.container + '_navigationbar');
 
                 // Style settings are superseded by adding the CSS class below
                 node.style.color = attr.strokecolor;
@@ -33313,7 +33709,7 @@ define('renderer/abstract',[
                 if (board.attr.showfullscreen) {
                     createButton(board.attr.fullscreen.symbol, function () {
                         board.toFullscreen(board.attr.fullscreen.id);
-                    });
+                    }, board.container + '_navigation_fullscreen');
                 }
 
                 if (board.attr.showscreenshot) {
@@ -33321,7 +33717,7 @@ define('renderer/abstract',[
                         window.setTimeout(function() {
                             board.renderer.screenshot(board, '', false);
                         }, 330);
-                    });
+                    }, board.container + '_navigation_screenshot');
                 }
 
                 if (board.attr.showreload) {
@@ -33330,26 +33726,26 @@ define('renderer/abstract',[
                     // of this button. That's why this anonymous function wrapper is required.
                     createButton('\u21BB', function () {
                         board.reload();
-                    });
+                    }, board.container + '_navigation_reload');
                 }
 
                 if (board.attr.showcleartraces) {
                     // clear traces symbol (otimes): \u27F2
                     createButton('\u2297', function () {
                         board.clearTraces();
-                    });
+                    }, board.container + '_navigation_cleartraces');
                 }
 
                 if (board.attr.shownavigation) {
                     if (board.attr.showzoom) {
-                        createButton('\u2013', board.zoomOut);
-                        createButton('o', board.zoom100);
-                        createButton('+', board.zoomIn);
+                        createButton('\u2013', board.zoomOut, board.container + '_navigation_out');
+                        createButton('o', board.zoom100, board.container + '_navigation_100');
+                        createButton('+', board.zoomIn, board.container + '_navigation_in');
                     }
-                    createButton('\u2190', board.clickLeftArrow);
-                    createButton('\u2193', board.clickUpArrow);
-                    createButton('\u2191', board.clickDownArrow);
-                    createButton('\u2192', board.clickRightArrow);
+                    createButton('\u2190', board.clickLeftArrow, board.container + '_navigation_left');
+                    createButton('\u2193', board.clickUpArrow, board.container + '_navigation_up');
+                    createButton('\u2191', board.clickDownArrow, board.container + '_navigation_down');
+                    createButton('\u2192', board.clickRightArrow, board.container + '_navigation_right');
                 }
             }
         },
@@ -38708,42 +39104,63 @@ define('base/text',[
             var updateText, resolvedText,
                 ev_p = Type.evaluate(this.visProp.parse),
                 ev_um = Type.evaluate(this.visProp.usemathjax),
-                ev_uk = Type.evaluate(this.visProp.usekatex);
+                ev_uk = Type.evaluate(this.visProp.usekatex),
+                convertJessieCode = false;
 
             this.orgText = text;
+
             if (Type.isFunction(text)) {
+                // <value> tags will not be evaluated if text is provided by a function
                 this.updateText = function () {
-                    resolvedText = text().toString();
+                    resolvedText = text().toString();  // Evaluate function
                     if (ev_p && !ev_um && !ev_uk) {
                         this.plaintext = this.replaceSub(this.replaceSup(this.convertGeonextAndSketchometry2CSS(resolvedText)));
                     } else {
                         this.plaintext = resolvedText;
                     }
                 };
-            } else if (Type.isString(text) && !ev_p) {   // Do not parse
-                this.updateText = function () {
-                    this.plaintext = text;
-                };
-            } else {                                     // Parse
+
+            } else {
+
                 if (Type.isNumber(text)) {
                     this.content = Type.toFixed(text, Type.evaluate(this.visProp.digits));
-                } else {
-                    if (Type.evaluate(this.visProp.useasciimathml)) {
-                        // Convert via ASCIIMathML
+                } else if (Type.isString(text) && ev_p) {
+
+                    if (Type.evaluate(this.visProp.useasciimathml)) {   // ASCIIMathML
                         this.content = "'`" + text + "`'";
-                    } else if (ev_um || ev_uk) {
-                        this.content = "'" + text + "'";
+
+                    } else if (ev_um || ev_uk) {                        // MathJax or KaTeX
+                        // Replace value-tags by functions
+                        this.content = this.valueTagToJessieCode(text);
+                        this.content = this.content.replace(/\\/g, "\\\\"); // Replace single backshlash by double
+
                     } else {
+                        // No TeX involved.
                         // Converts GEONExT syntax into JavaScript string
                         // Short math is allowed
+                        // Replace value-tags by functions
                         // Avoid geonext2JS calls
-                        this.content = this.generateTerm(text, true, true);
+                        this.content = this.poorMansTeX(this.valueTagToJessieCode(text));
                     }
+                    convertJessieCode = true;
                 }
-                updateText = this.board.jc.snippet(this.content, true, '', false);
-                this.updateText = function () {
-                    this.plaintext = updateText();
-                };
+
+                // Generate function which returns the text to be displayed
+                if (convertJessieCode) {
+
+                    // Convert JessieCode to JS function
+                    updateText = this.board.jc.snippet(this.content, true, '', false);
+
+                    // Ticks have been esacped in valueTagToJessieCode
+                    this.updateText = function () {
+                        this.plaintext = this.unescapeTicks(updateText());
+                    };
+                } else {
+                    this.updateText = function () {
+                        this.plaintext = text;
+                    };
+
+                }
             }
         },
 
@@ -39096,11 +39513,16 @@ define('base/text',[
          * Converts the GEONExT syntax of the <value> terms into JavaScript.
          * Also, all Objects whose name appears in the term are searched and
          * the text is added as child to these objects.
+         * This method is called if the attribute parse==true is set.
          *
          * @param{String} contentStr String to be parsed
          * @param{Boolean} [expand] Optional flag if shortened math syntax is allowed (e.g. 3x instead of 3*x).
          * @param{Boolean} [avoidGeonext2JS] Optional flag if geonext2JS should be called. For backwards compatibility
          * this has to be set explicitely to true.
+         * @param{Boolean} [outputTeX] Optional flag which has to be true if the resulting term will be sent to MathJax or KaTeX.
+         * If true, "_" and "^" are NOT replaced by HTML tags sub and sup. Default: false, i.e. the replacement is done.
+         * This flag allows the combination of &lt;value&gt; tag containing calculations with TeX output.
+         *
          * @private
          * @see JXG.GeonextParser.geonext2JS
          */
@@ -39108,13 +39530,17 @@ define('base/text',[
             var res, term, i, j,
                 plaintext = '""';
 
-            // revert possible jc replacement
+            // Revert possible jc replacement
             contentStr = contentStr || '';
             contentStr = contentStr.replace(/\r/g, '');
             contentStr = contentStr.replace(/\n/g, '');
             contentStr = contentStr.replace(/"/g, '\'');
             contentStr = contentStr.replace(/'/g, "\\'");
 
+            // Old GEONExT syntax, not (yet) supported as TeX output.
+            // Otherwise, the else clause should be used.
+            // That means, i.e. the <arc> tag and <sqrt> tag are not
+            // converted into TeX syntax.
             contentStr = contentStr.replace(/&amp;arc;/g, '&ang;');
             contentStr = contentStr.replace(/<arc\s*\/>/g, '&ang;');
             contentStr = contentStr.replace(/&lt;arc\s*\/&gt;/g, '&ang;');
@@ -39129,6 +39555,8 @@ define('base/text',[
             if (i >= 0) {
                 while (i >= 0) {
                     plaintext += ' + "' + this.replaceSub(this.replaceSup(contentStr.slice(0, i))) + '"';
+                    // plaintext += ' + "' + this.replaceSub(contentStr.slice(0, i)) + '"';
+
                     term = contentStr.slice(i + 7, j);
                     term = term.replace(/\s+/g, ''); // Remove all whitespace
                     if (expand === true) {
@@ -39164,11 +39592,82 @@ define('base/text',[
             plaintext += ' + "' + this.replaceSub(this.replaceSup(contentStr)) + '"';
             plaintext = this.convertGeonextAndSketchometry2CSS(plaintext);
 
-            // This should replace &amp;pi; by &pi;
+            // This should replace e.g. &amp;pi; by &pi;
             plaintext = plaintext.replace(/&amp;/g, '&');
             plaintext = plaintext.replace(/"/g, "'");
 
             return plaintext;
+        },
+
+        valueTagToJessieCode: function(contentStr) {
+            var res, term, i, j,
+                expandShortMath = true,
+                textComps = [],
+                tick = '"';
+
+            contentStr = contentStr || '';
+            contentStr = contentStr.replace(/\r/g, '');
+            contentStr = contentStr.replace(/\n/g, '');
+
+            contentStr = contentStr.replace(/&lt;value&gt;/g, '<value>');
+            contentStr = contentStr.replace(/&lt;\/value&gt;/g, '</value>');
+
+            // Convert content of value tag (GEONExT/JessieCode) syntax into JavaScript syntax
+            i = contentStr.indexOf('<value>');
+            j = contentStr.indexOf('</value>');
+            if (i >= 0) {
+                while (i >= 0) {
+                    // Add string fragment before <value> tag
+                    textComps.push(tick + this.escapeTicks(contentStr.slice(0, i)) + tick);
+
+                    term = contentStr.slice(i + 7, j);
+                    term = term.replace(/\s+/g, ''); // Remove all whitespace
+                    if (expandShortMath === true) {
+                        term = this.expandShortMath(term);
+                    }
+                    res = term;
+                    res = res.replace(/\\"/g, "'").replace(/\\'/g, "'");
+
+                    // Hack: apply rounding once only.
+                    if (res.indexOf('toFixed') < 0) {
+                        // Output of a value tag
+                        // Run the JessieCode parser
+                        if (Type.isNumber((Type.bind(this.board.jc.snippet(res, true, '', false), this))())) {
+                            // Output is number
+                            textComps.push('(' + res + ').toFixed(' + (Type.evaluate(this.visProp.digits)) + ')');
+                        } else {
+                            // Output is a string
+                            textComps.push('(' + res + ')');
+                        }
+                    } else {
+                        textComps.push('(' + res + ')');
+                    }
+                    contentStr = contentStr.slice(j + 8);
+                    i = contentStr.indexOf('<value>');
+                    j = contentStr.indexOf('</value>');
+                }
+            }
+            // Add trailing string fragment
+            textComps.push(tick + this.escapeTicks(contentStr) + tick);
+
+            return textComps.join(' + ').replace(/&amp;/g, '&');
+        },
+
+        poorMansTeX: function(s) {
+            s = s.replace(/<arc\s*\/*>/g, '&ang;')
+                .replace(/&lt;arc\s*\/*&gt;/g, '&ang;')
+                .replace(/<sqrt\s*\/*>/g, '&radic;')
+                .replace(/&lt;sqrt\s*\/*&gt;/g, '&radic;');
+
+            return this.convertGeonextAndSketchometry2CSS(this.replaceSub(this.replaceSup(s)));
+        },
+
+        escapeTicks: function(s) {
+            return s.replace(/"/g, '%22').replace(/'/g, '%27');
+        },
+
+        unescapeTicks: function(s) {
+            return s.replace(/%22/g, '"').replace(/%27/g, "'");
         },
 
         /**
@@ -41321,7 +41820,7 @@ define('parser/jessiecode',[
             case 'node_str':
                 //ret = node.value.replace(/\\'/, "'").replace(/\\"/, '"').replace(/\\\\/, '\\');
                 /*jslint regexp:true*/
-                ret = node.value.replace(/\\(.)/, '$1');
+                ret = node.value.replace(/\\(.)/g, '$1'); // Remove backslash, important in JessieCode tags
                 /*jslint regexp:false*/
                 break;
             }
@@ -41468,6 +41967,8 @@ define('parser/jessiecode',[
 
                         if (js) {
                             e = '$jc$.mergeAttributes(' + list.join(', ') + ')';
+                        } else {
+                            e = list.join(', ');
                         }
                     }
                     node.children[0].withProps = !!node.children[2];
@@ -41475,7 +41976,7 @@ define('parser/jessiecode',[
                     for (i = 0; i < node.children[1].length; i++) {
                         list.push(this.compile(node.children[1][i], js));
                     }
-                    ret = this.compile(node.children[0], js) + '(' + list.join(', ') + (node.children[2] && js ? ', ' + e : '') + ')' + (node.children[2] && !js ? e : '');
+                    ret = this.compile(node.children[0], js) + '(' + list.join(', ') + (node.children[2] && js ? ', ' + e : '') + ')' + (node.children[2] && !js ? ' ' + e : '');
                     if (js) {
                         // Inserting a newline here allows simulataneously
                         // - procedural calls like Q.moveTo(...); and
@@ -41636,7 +42137,11 @@ define('parser/jessiecode',[
             }
 
             if (node.needsBrackets) {
-                ret = '{\n' + ret + '\n}\n';
+                if (js) {
+                    ret = '{\n' + ret + '\n}\n';
+                } else {
+                    ret = '<< ' + ret + ' >>';
+                }
             }
 
             return ret;
@@ -43905,7 +44410,7 @@ define('base/board',[
         this.numObjects = 0;
 
         /**
-         * An associative array to store the objects of the board by name. the name of the object is the key and value is a reference to the object.
+         * An associative array / dictionary to store the objects of the board by name. The name of the object is the key and value is a reference to the object.
          * @type Object
          */
         this.elementsByName = {};
@@ -44390,7 +44895,7 @@ define('base/board',[
                 // In ownerDoc we need the "real" document object.
                 // The first version is used in the case of shadowDom,
                 // the second case in the "normal" case.
-                ownerDoc = this.document.ownerDocument || this.document, 
+                ownerDoc = this.document.ownerDocument || this.document,
                 docElement = ownerDoc.documentElement || this.document.body.parentNode,
                 docBody = ownerDoc.body,
                 container = this.containerObj,
@@ -44767,7 +45272,8 @@ define('base/board',[
          */
         twoFingerTouchObject: function (tar, drag, id) {
             var np, op, nd, od,
-                d, alpha,
+                d,
+                alpha = 0,
                 S, t1, t3, t4, t5,
                 ar, i, len,
                 fixEl, moveEl, fix;
@@ -44801,7 +45307,9 @@ define('base/board',[
                     return;
                 }
 
-                alpha = Geometry.rad(op.slice(1), fix.slice(1), np.slice(1));
+                if (Type.evaluate(drag.visProp.rotatable)) {
+                    alpha = Geometry.rad(op.slice(1), fix.slice(1), np.slice(1));
+                }
 
                 t1 = this.create('transform', [alpha, [fix[1], fix[2]]], {type: 'rotate'});
                 t1.update();
@@ -45972,7 +46480,8 @@ define('base/board',[
          * @returns {Boolean}
          */
         pointerUpListener: function (evt) {
-            var i, j, found, touchTargets;
+            var i, j, found, touchTargets,
+                updateNeeded = false;
 
             this.triggerEventHandlers(['touchend', 'up', 'pointerup', 'MSPointerUp'], [evt]);
             this.displayInfobox(false);
@@ -46010,8 +46519,14 @@ define('base/board',[
                     }
                     if (!found) {
                         this.downObjects[i].triggerEventHandlers(['touchend', 'up', 'pointerup', 'MSPointerUp'], [evt]);
-                        // this.downObjects[i].snapToGrid();
-                        // this.downObjects[i].snapToPoints();
+                        if (!Type.exists(this.downObjects[i].coords)) {
+                            // snapTo methods have to be called e.g. for line elements here.
+                            // For coordsElements there might be a conflict with
+                            // attractors, see commit from 2022.04.08, 11:12:18.
+                            this.downObjects[i].snapToGrid();
+                            this.downObjects[i].snapToPoints();
+                            updateNeeded = true;
+                        }
                         this.downObjects.splice(i, 1);
                     }
                 }
@@ -46032,7 +46547,9 @@ define('base/board',[
             // this.mode = this.BOARD_MODE_NONE;
 
             // this.originMoveEnd();
-            // this.update();
+            if (updateNeeded) {
+                this.update();
+            }
 
             // After one finger leaves the screen the gesture is stopped.
             this._pointerClearTouches();
@@ -46367,7 +46884,8 @@ define('base/board',[
                 eps = this.options.precision.touch,
                 tmpTouches = [], found, foundNumber,
                 evtTouches = evt && evt[JXG.touchProperty],
-                touchTargets;
+                touchTargets,
+                updateNeeded = false;
 
             this.triggerEventHandlers(['touchend', 'up'], [evt]);
             this.displayInfobox(false);
@@ -46468,8 +46986,14 @@ define('base/board',[
                 }
                 if (!found) {
                     this.downObjects[i].triggerEventHandlers(['touchup', 'up'], [evt]);
-                    // this.downObjects[i].snapToGrid();
-                    // this.downObjects[i].snapToPoints();
+                    if (!Type.exists(this.downObjects[i].coords)) {
+                        // snapTo methods have to be called e.g. for line elements here.
+                        // For coordsElements there might be a conflict with
+                        // attractors, see commit from 2022.04.08, 11:12:18.
+                        this.downObjects[i].snapToGrid();
+                        this.downObjects[i].snapToPoints();
+                        updateNeeded = true;
+                    }
                     this.downObjects.splice(i, 1);
                 }
             }
@@ -46485,7 +47009,9 @@ define('base/board',[
                 this.updateQuality = this.BOARD_QUALITY_HIGH;
 
                 this.originMoveEnd();
-                this.update();
+                if (updateNeeded) {
+                    this.update();
+                }
             }
 
             return true;
@@ -46632,11 +47158,16 @@ define('base/board',[
             // redraw with high precision
             this.updateQuality = this.BOARD_QUALITY_HIGH;
 
-            // if (this.mouse && this.mouse.obj) {
-            //     // The parameter is needed for lines with snapToGrid enabled
-            //     this.mouse.obj.snapToGrid(this.mouse.targets[0]);
-            //     this.mouse.obj.snapToPoints();
-            // }
+            if (this.mouse && this.mouse.obj) {
+                if (!Type.exists(this.mouse.obj.coords)) {
+                    // snapTo methods have to be called e.g. for line elements here.
+                    // For coordsElements there might be a conflict with
+                    // attractors, see commit from 2022.04.08, 11:12:18.
+                    // The parameter is needed for lines with snapToGrid enabled
+                    this.mouse.obj.snapToGrid(this.mouse.targets[0]);
+                    this.mouse.obj.snapToPoints();
+                }
+            }
 
             this.originMoveEnd();
             this.dehighlightAll();
@@ -46692,11 +47223,18 @@ define('base/board',[
         },
 
         /**
-         * Allow moving of JSXGraph elements with arrow keys
-         * and zooming of the construction with + / -.
+         * Allow moving of JSXGraph elements with arrow keys.
+         * The selection of the element is done with the tab key. For this,
+         * the attribute "tabindex" of the element has to be set to some number (default=0).
+         * tabindex corresponds to the HTML attribute of the same name.
+         * <p>
          * Panning of the construction is done with arrow keys
-         * if the pan key (shift or ctrl) is pressed.
-         * The selection of the element is done with the tab key.
+         * if the pan key (shift or ctrl - depending on the board attributes) is pressed.
+         * <p>
+         * Zooming is triggered with the keys +, o, -, if
+         * the pan key (shift or ctrl - depending on the board attributes) is pressed.
+         * <p>
+         * Keyboard control (move, pan, and zoom) is disabled if an HTML element of type input or textarea has received focus.
          *
          * @param  {Event} evt The browser's event object
          *
@@ -46707,7 +47245,7 @@ define('base/board',[
          */
         keyDownListener: function (evt) {
             var id_node = evt.target.id,
-                id, el, res,
+                id, el, res, doc,
                 sX = 0,
                 sY = 0,
                 // dx, dy are provided in screen units and
@@ -46722,6 +47260,15 @@ define('base/board',[
                 return false;
             }
 
+            // An element of type input or textarea has foxus, get out of here.
+            doc = this.containerObj.shadowRoot || document;
+            if (doc.activeElement) {
+                el = doc.activeElement;
+                if (el.tagName === 'INPUT' || el.tagName === 'textarea') {
+                    return false;
+                }
+            }
+
             // Get the JSXGraph id from the id of the SVG node.
             id = id_node.replace(this.containerObj.id + '_', '');
             el = this.select(id);
@@ -46730,12 +47277,15 @@ define('base/board',[
                 actPos = el.coords.usrCoords.slice(1);
             }
 
-            if (Type.evaluate(this.attr.keyboard.panshift) || Type.evaluate(this.attr.keyboard.panctrl)) {
-                doZoom = true;
-            }
-
             if ((Type.evaluate(this.attr.keyboard.panshift) && evt.shiftKey) ||
                 (Type.evaluate(this.attr.keyboard.panctrl) && evt.ctrlKey)) {
+                // Pan key has been pressed
+
+                if (Type.evaluate(this.attr.zoom.enabled) === true) {
+                    doZoom = true;
+                }
+
+                // Arrow keys
                 if (evt.keyCode === 38) {           // up
                     this.clickUpArrow();
                 } else if (evt.keyCode === 40) {    // down
@@ -46744,10 +47294,20 @@ define('base/board',[
                     this.clickLeftArrow();
                 } else if (evt.keyCode === 39) {    // right
                     this.clickRightArrow();
+
+                // Zoom keys
+                } else if (doZoom && evt.keyCode === 171) {   // +
+                    this.zoomIn();
+                } else if (doZoom && evt.keyCode === 173) {   // -
+                    this.zoomOut();
+                } else if (doZoom && evt.keyCode === 79) {   // o
+                    this.zoom100();
+
                 } else {
                     done = false;
                 }
             } else {
+
                 // Adapt dx, dy to snapToGrid and attractToGrid
                 // snapToGrid has priority.
                 if (Type.exists(el.visProp)) {
@@ -46790,14 +47350,6 @@ define('base/board',[
                     dir = [-dx, 0];
                 } else if (evt.keyCode === 39) {    // right
                     dir = [dx, 0];
-                // } else if (evt.keyCode === 9) {  // tab
-
-                } else if (doZoom && evt.key === '+') {   // +
-                    this.zoomIn();
-                } else if (doZoom && evt.key === '-') {   // -
-                    this.zoomOut();
-                } else if (doZoom && evt.key === 'o') {   // o
-                    this.zoom100();
                 } else {
                     done = false;
                 }
@@ -46830,12 +47382,13 @@ define('base/board',[
             if (done && Type.exists(evt.preventDefault)) {
                 evt.preventDefault();
             }
-            return true;
+            return done;
         },
 
         /**
          * Event listener for SVG elements getting focus.
          * This is needed for highlighting when using keyboard control.
+         * Only elements having the attribute "tabindex" can receive focus.
          *
          * @see JXG.Board#keyFocusOutListener
          * @see JXG.Board#keyDownListener
@@ -46865,6 +47418,7 @@ define('base/board',[
         /**
          * Event listener for SVG elements losing focus.
          * This is needed for dehighlighting when using keyboard control.
+         * Only elements having the attribute "tabindex" can receive focus.
          *
          * @see JXG.Board#keyFocusInListener
          * @see JXG.Board#keyDownListener
@@ -46915,8 +47469,8 @@ define('base/board',[
             }
 
             // If div is invisible - do nothing
-            if (w <= 0 || h <= 0 || Type.isNaN(w) || Type.isNaN(h)) {
-                return;
+            if (w <= 0 || h <= 0 || isNaN(w) || isNaN(h)) {
+                    return;
             }
 
             // If bounding box is not yet initialized, do it now.
@@ -48867,7 +49421,7 @@ define('base/board',[
                 return s;
             }
 
-            // it's a string, most likely an id or a name.
+            // It's a string, most likely an id or a name.
             if (Type.isString(s) && s !== '') {
                 // Search by ID
                 if (Type.exists(this.objects[s])) {
@@ -48879,7 +49433,8 @@ define('base/board',[
                 } else if (Type.exists(this.groups[s])) {
                     s = this.groups[s];
                 }
-            // it's a function or an object, but not an element
+
+            // It's a function or an object, but not an element
             } else if (!onlyByIdOrName &&
                 (Type.isFunction(s) ||
                  (Type.isObject(s) && !Type.isFunction(s.setAttribute))
@@ -48892,7 +49447,8 @@ define('base/board',[
                     olist[flist[i].id] = flist[i];
                 }
                 s = new Composition(olist);
-            // it's an element which has been deleted (and still hangs around, e.g. in an attractor list
+
+            // It's an element which has been deleted (and still hangs around, e.g. in an attractor list
             } else if (Type.isObject(s) && Type.exists(s.id) && !Type.exists(this.objects[s.id])) {
                 s = null;
             }
@@ -48930,10 +49486,20 @@ define('base/board',[
          */
         updateCSSTransforms: function () {
             var obj = this.containerObj,
-                o = obj,
-                o2 = obj;
+                o = obj;
+                // o2 = obj;
 
             this.cssTransMat = Env.getCSSTransformMatrix(o);
+
+            // Newer variant of walking up the tree.
+            // We walk up all parent nodes and collect possible CSS transforms.
+            // Works also for ShadowDOM
+            o = o.parentNode === o.getRootNode() ? o.parentNode.host : o.parentNode;
+            while (o) {
+                this.cssTransMat = Mat.matMatMult(Env.getCSSTransformMatrix(o), this.cssTransMat);
+                o = o.parentNode === o.getRootNode() ? o.parentNode.host : o.parentNode;
+            }
+            this.cssTransMat = Mat.inverse(this.cssTransMat);
 
             /*
              * In Mozilla and Webkit: offsetParent seems to jump at least to the next iframe,
@@ -48941,20 +49507,22 @@ define('base/board',[
              * offsetParent walks up the DOM hierarchy.
              * In order to walk up the DOM hierarchy also in Mozilla and Webkit
              * we need the parentNode steps.
+             *
+             * Seems to be outdated
              */
-            o = o.offsetParent;
-            while (o) {
-                this.cssTransMat = Mat.matMatMult(Env.getCSSTransformMatrix(o), this.cssTransMat);
+            // o = o.offsetParent;
+            // while (o) {
+            //     this.cssTransMat = Mat.matMatMult(Env.getCSSTransformMatrix(o), this.cssTransMat);
 
-                o2 = o2.parentNode;
-                while (o2 !== o) {
-                    this.cssTransMat = Mat.matMatMult(Env.getCSSTransformMatrix(o), this.cssTransMat);
-                    o2 = o2.parentNode || o2.host;
-                }
+            //     o2 = o2.parentNode;
+            //     while (o2 !== o) {
+            //         this.cssTransMat = Mat.matMatMult(Env.getCSSTransformMatrix(o), this.cssTransMat);
+            //         o2 = o2.parentNode;
+            //     }
 
-                o = o.offsetParent;
-            }
-            this.cssTransMat = Mat.inverse(this.cssTransMat);
+            //     o = o.offsetParent;
+            // }
+            // this.cssTransMat = Mat.inverse(this.cssTransMat);
 
             return this;
         },
@@ -49515,16 +50083,17 @@ define('base/board',[
          *
          */
         toFullscreen: function (id) {
-            var wrap_id, wrap_node, inner_node;
+            var wrap_id, wrap_node, inner_node,
+                doc = this.document, fullscreenElement;
 
             id = id || this.container;
             this._fullscreen_inner_id = id;
-            inner_node = this.document.getElementById(id);
+            inner_node = doc.getElementById(id);
             wrap_id = 'fullscreenwrap_' + id;
 
             // Wrap a div around the JSXGraph div.
-            if (this.document.getElementById(wrap_id)) {
-                wrap_node = this.document.getElementById(wrap_id);
+            if (doc.getElementById(wrap_id)) {
+                wrap_node = doc.getElementById(wrap_id);
             } else {
                 wrap_node = document.createElement('div');
                 wrap_node.classList.add('JXG_wrap_private');
@@ -49535,7 +50104,7 @@ define('base/board',[
 
             // Get the real width and height of the JSXGraph div
             // and determine the scaling and vertical shift amount
-            this._fullscreen_res = Env._getScaleFactors(inner_node);
+            // this._fullscreen_res = Env._getScaleFactors(inner_node);
 
             // Trigger fullscreen mode
             wrap_node.requestFullscreen = wrap_node.requestFullscreen ||
@@ -49543,8 +50112,24 @@ define('base/board',[
                 wrap_node.mozRequestFullScreen ||
                 wrap_node.msRequestFullscreen;
 
-            if (wrap_node.requestFullscreen) {
-                wrap_node.requestFullscreen();
+            if (doc.fullscreenElement !== undefined) {
+                fullscreenElement = doc.fullscreenElement;
+            } else if (doc.webkitFullscreenElement !== undefined) {
+                fullscreenElement = doc.webkitFullscreenElement;
+            } else {
+                fullscreenElement = doc.msFullscreenElement;
+            }
+            if (fullscreenElement === null) {
+                // Start fullscreen mode
+                if (wrap_node.requestFullscreen) {
+                    wrap_node.requestFullscreen();
+                }
+            } else {
+                if (Type.exists(document.exitFullscreen)) {
+                    document.exitFullscreen();
+                } else if (Type.exists(document.webkitExitFullscreen)) {
+                    document.webkitExitFullscreen();
+                }
             }
 
             return this;
@@ -49558,27 +50143,31 @@ define('base/board',[
          * @param  {Object} evt fullscreen event object (unused)
          */
         fullscreenListener: function (evt) {
-            var res, inner_id, inner_node;
+            var inner_id, inner_node, fullscreenElement, // res,
+                doc = this.document;
 
             inner_id = this._fullscreen_inner_id;
             if (!Type.exists(inner_id)) {
                 return;
             }
 
-            this.document.fullscreenElement = this.document.fullscreenElement ||
-                    this.document.webkitFullscreenElement ||
-                    this.document.mozFullscreenElement ||
-                    this.document.msFullscreenElement;
+            if (doc.fullscreenElement !== undefined) {
+                fullscreenElement = doc.fullscreenElement;
+            } else if (doc.webkitFullscreenElement !== undefined) {
+                fullscreenElement = doc.webkitFullscreenElement;
+            } else {
+                fullscreenElement = doc.msFullscreenElement;
+            }
 
-            inner_node = this.document.getElementById(inner_id);
+            inner_node = doc.getElementById(inner_id);
             // If full screen mode is started we have to remove CSS margin around the JSXGraph div.
             // Otherwise, the positioning of the fullscreen div will be false.
             // When leaving the fullscreen mode, the margin is put back in.
-            if (this.document.fullscreenElement) {
+            if (fullscreenElement) {
                 // Just entered fullscreen mode
 
                 // Get the data computed in board.toFullscreen()
-                res = this._fullscreen_res;
+                // res = this._fullscreen_res;
 
                 // Store the scaling data.
                 // It is used in AbstractRenderer.updateText to restore the scaling matrix
@@ -49586,39 +50175,40 @@ define('base/board',[
                 // Further, the CSS margin has to be removed when in fullscreen mode,
                 // and must be restored later.
                 inner_node._cssFullscreenStore = {
-                    id: this.document.fullscreenElement.id,
+                    id: fullscreenElement.id,
                     isFullscreen: true,
                     margin: inner_node.style.margin,
-                    width: inner_node.style.width,
-                    scale: res.scale,
-                    vshift: res.vshift
+                    // width: inner_node.style.width
+                    // scale: res.scale,
+                    // vshift: res.vshift
                 };
 
                 inner_node.style.margin = '';
-                inner_node.style.width = res.width + 'px';
+                // inner_node.style.width = res.width + 'px';
 
                 // Do the shifting and scaling via CSS pseudo rules
                 // We do this after fullscreen mode has been established to get the correct size
                 // of the JSXGraph div.
-                Env.scaleJSXGraphDiv(document.fullscreenElement.id, inner_id, res.scale, res.vshift);
+                // Env.scaleJSXGraphDiv(fullscreenElement.id, inner_id, res.scale, res.vshift, res.ratio, doc);
+                Env.scaleJSXGraphDiv(fullscreenElement.id, inner_id, doc);
 
-                // Clear this.document.fullscreenElement, because Safari doesn't to it and
+                // Clear this.doc.fullscreenElement, because Safari doesn't to it and
                 // when leaving full screen mode it is still set.
-                this.document.fullscreenElement = null;
+                fullscreenElement = null;
 
             } else if (Type.exists(inner_node._cssFullscreenStore)) {
                 // Just left the fullscreen mode
 
                 // Remove the CSS rules added in Env.scaleJSXGraphDiv
                 try {
-                    this.document.styleSheets[this.document.styleSheets.length - 1].deleteRule(0);
+                    doc.styleSheets[doc.styleSheets.length - 1].deleteRule(0);
                 } catch (err) {
                     console.log('JSXGraph: Could not remove CSS rules for full screen mode');
                 }
 
                 inner_node._cssFullscreenStore.isFullscreen = false;
                 inner_node.style.margin = inner_node._cssFullscreenStore.margin;
-                inner_node.style.width = inner_node._cssFullscreenStore.width;
+                // inner_node.style.width = inner_node._cssFullscreenStore.width;
             }
 
             this.updateCSSTransforms();
@@ -49972,15 +50562,22 @@ define('renderer/svg',[
         this.filter.setAttributeNS(null, 'filterUnits', 'userSpaceOnUse');
 
         this.feOffset = this.container.ownerDocument.createElementNS(this.svgNamespace, 'feOffset');
+        this.feOffset.setAttributeNS(null, 'in', 'SourceAlpha'); // b/w: SourceAlpha, Color: SourceGraphic
         this.feOffset.setAttributeNS(null, 'result', 'offOut');
-        this.feOffset.setAttributeNS(null, 'in', 'SourceAlpha');
         this.feOffset.setAttributeNS(null, 'dx', '5');
         this.feOffset.setAttributeNS(null, 'dy', '5');
         this.filter.appendChild(this.feOffset);
 
+        // this.feColor = this.container.ownerDocument.createElementNS(this.svgNamespace, 'feColorMatrix');
+        // this.feColor.setAttributeNS(null, 'in', 'offOut');
+        // this.feColor.setAttributeNS(null, 'result', 'colorOut');
+        // this.feColor.setAttributeNS(null, 'type', 'matrix');
+        // this.feColor.setAttributeNS(null, 'values', '0.1 0 0 0 0  0 0.1 0 0 0  0 0 0.1 0 50  0 0 0 1 0');
+        // this.filter.appendChild(this.feColor);
+
         this.feGaussianBlur = this.container.ownerDocument.createElementNS(this.svgNamespace, 'feGaussianBlur');
-        this.feGaussianBlur.setAttributeNS(null, 'result', 'blurOut');
         this.feGaussianBlur.setAttributeNS(null, 'in', 'offOut');
+        this.feGaussianBlur.setAttributeNS(null, 'result', 'blurOut');
         this.feGaussianBlur.setAttributeNS(null, 'stdDeviation', '3');
         this.filter.appendChild(this.feGaussianBlur);
 
@@ -50790,6 +51387,7 @@ define('renderer/svg',[
                 len = el.vertices.length;
 
             node.setAttributeNS(null, 'stroke', 'none');
+            node.setAttributeNS(null, 'fill-rule', 'evenodd');
             if (el.elType === 'polygonalchain') {
                 len++;
             }
@@ -51245,9 +51843,14 @@ define('renderer/svg',[
         // documented in JXG.AbstractRenderer
         setShadow: function (el) {
             var ev_s = Type.evaluate(el.visProp.shadow);
+                // ev_c = Type.evaluate(el.visProp.shadowcolor),
+                // c;
+
             if (el.visPropOld.shadow === ev_s) {
                 return;
             }
+
+            // c = JXG.rgbParser(ev_c);
 
             if (Type.exists(el.rendNode)) {
                 if (ev_s) {
@@ -52920,7 +53523,7 @@ define('renderer/canvas',[
                 if (doFill) {
                     context.lineTo(shape[0][0], shape[0][1]);
                     context.closePath();
-                    context.fill();
+                    context.fill('evenodd');
                 } else {
                     context.stroke();
                 }
@@ -52937,7 +53540,7 @@ define('renderer/canvas',[
 
             context.save();
             if (this._setColor(el, 'fill')) {
-                context.fill();
+                context.fill('evenodd');
             }
             context.restore();
         },
@@ -55300,6 +55903,8 @@ define('jsxgraph',[
          * @param {Boolean|Object} [attributes.grid] If set to true, shows the grid. Can also be set to an object that is given to the grid as its attribute object.
          * @param {Boolean} [attributes.registerEvents=true] Register mouse / touch events.
          * @returns {JXG.Board} Reference to the created board.
+         *
+         * @see JXG.AbstractRenderer#drawZoomBar
          */
         initBoard: function (box, attributes) {
             var originX, originY, unitX, unitY,
@@ -55544,7 +56149,8 @@ define('jsxgraph',[
         }
     };
 
-    // JessieScript/JessieCode startup: Search for script tags of type text/jessiescript and interprete them.
+    // JessieScript/JessieCode startup: 
+    // Search for script tags of type text/jessiescript and interprete them.
     if (Env.isBrowser && typeof window === 'object' && typeof document === 'object') {
         Env.addEvent(window, 'load', function () {
             var type, i, j, div,
@@ -60159,7 +60765,7 @@ define('element/conic',[
      *
      * @example
      * // Parameters: A, C, F, B/2, D/2, E/2
-     * var conic = board.create('conic', [1, 2, -4, 0, 0, 0]s);
+     * var conic = board.create('conic', [1, 2, -4, 0, 0, 0]);
      *
      * </pre><div id="JXG8576a04a-52d8-4a7e-8d54-e32443910b97" class="jxgbox" style="width: 300px; height: 300px;"></div>
      * <script type="text/javascript">
@@ -60167,7 +60773,7 @@ define('element/conic',[
      *         var board = JXG.JSXGraph.initBoard('JXG8576a04a-52d8-4a7e-8d54-e32443910b97',
      *             {boundingbox: [-8, 8, 8,-8], axis: true, showcopyright: false, shownavigation: false});
      *     // Parameters: A, C, F, B/2, D/2, E/2
-     *     var conic = board.create('conic', [1, 2, -4, 0, 0, 0]s);
+     *     var conic = board.create('conic', [1, 2, -4, 0, 0, 0]);
      *     })();
      *
      * </script><pre>
@@ -61456,6 +62062,14 @@ define('base/polygon',[
         this.vertices = [];
         for (i = 0; i < vertices.length; i++) {
             this.vertices[i] = this.board.select(vertices[i]);
+
+            // The _is_new flag is replaced by _is_new_pol.
+            // Otherwise, the polygon would disappear if the last border element
+            // is removed (and the point has been provided by coordinates)
+            if (this.vertices[i]._is_new) {
+                delete this.vertices[i]._is_new;
+                this.vertices[i]._is_new_pol = true;
+            }
         }
 
         // Close the polygon
@@ -61503,9 +62117,9 @@ define('base/polygon',[
         // - add  points (supplied as coordinate arrays by the user and created by Type.providePoints) as children to the polygon
         for (i = 0; i < this.vertices.length - 1; i++) {
             p = this.board.select(this.vertices[i]);
-            if (Type.exists(p._is_new)) {
+            if (Type.exists(p._is_new_pol)) {
                 this.addChild(p);
-                delete p._is_new;
+                delete p._is_new_pol;
             } else {
                 p.addChild(this);
             }
@@ -61541,10 +62155,7 @@ define('base/polygon',[
     JXG.extend(JXG.Polygon.prototype, /** @lends JXG.Polygon.prototype */ {
 
         /**
-         * Decides if a point (x,y) is inside of the polygon.
-         * Implements W. Randolf Franklin's pnpoly method.
-         *
-         * See <a href="https://wrf.ecse.rpi.edu/Research/Short_Notes/pnpoly.html">https://wrf.ecse.rpi.edu/Research/Short_Notes/pnpoly.html</a>.
+         * Wrapper for JXG.Math.Geometry.pnpoly.
          *
          * @param {Number} x_in x-coordinate (screen or user coordinates)
          * @param {Number} y_in y-coordinate (screen or user coordinates)
@@ -61552,7 +62163,9 @@ define('base/polygon',[
          *   Possible values are <b>JXG.COORDS_BY_USER</b> and <b>JXG.COORDS_BY_SCREEN</b>.
          *   Default value is JXG.COORDS_BY_SCREEN
          *
-         * @returns {Boolean} if (x,y) is inside of the polygon.
+         * @returns {Boolean} if (x_in, y_in) is inside of the polygon.
+         * @see JXG.Math.Geometry#pnpoly
+         *
          * @example
          * var pol = board.create('polygon', [[-1,2], [2,2], [-1,4]]);
          * var p = board.create('point', [4, 3]);
@@ -61578,31 +62191,7 @@ define('base/polygon',[
          *
          */
         pnpoly: function(x_in, y_in, coord_type) {
-            var i, j, len,
-                x, y, crds,
-                v = this.vertices,
-                isIn = false;
-
-            if (coord_type === Const.COORDS_BY_USER) {
-                crds = new Coords(Const.COORDS_BY_USER, [x_in, y_in], this.board);
-                x = crds.scrCoords[1];
-                y = crds.scrCoords[2];
-            } else {
-                x = x_in;
-                y = y_in;
-            }
-
-            len = this.vertices.length;
-            for (i = 0, j = len - 2; i < len - 1; j = i++) {
-                if (((v[i].coords.scrCoords[2] > y) !== (v[j].coords.scrCoords[2] > y)) &&
-                    (x < (v[j].coords.scrCoords[1] - v[i].coords.scrCoords[1]) *
-                    (y - v[i].coords.scrCoords[2]) / (v[j].coords.scrCoords[2] - v[i].coords.scrCoords[2]) + v[i].coords.scrCoords[1])
-                   ) {
-                    isIn = !isIn;
-                }
-            }
-
-            return isIn;
+            return Geometry.pnpoly(x_in, y_in, this.vertices, coord_type);
         },
 
         /**
@@ -61966,9 +62555,14 @@ define('base/polygon',[
          *
          */
         addPoints: function (p) {
-            var args = Array.prototype.slice.call(arguments);
+            var idx, args = Array.prototype.slice.call(arguments);
 
-            return this.insertPoints.apply(this, [this.vertices.length - 2].concat(args));
+            if (this.elType === 'polygonalchain') {
+                idx = this.vertices.length - 1;
+            } else {
+                idx = this.vertices.length - 2;
+            }
+            return this.insertPoints.apply(this, [idx].concat(args));
         },
 
         /**
@@ -62006,38 +62600,65 @@ define('base/polygon',[
          *
          */
         insertPoints: function (idx, p) {
-            var i, le;
+            var i, le, last, start, q;
 
             if (arguments.length === 0) {
                 return this;
             }
 
+            last = this.vertices.length - 1;
+            if (this.elType === 'polygon') {
+                last--;
+            }
 
-            if (idx < -1 || idx > this.vertices.length - 2) {
+            // Wrong insertion index, get out of here
+            if (idx < -1 || idx > last) {
                 return this;
             }
 
             le = arguments.length - 1;
             for (i = 1; i < le + 1; i++) {
-                this.vertices.splice(idx + i, 0,
-                    Type.providePoints(this.board, [arguments[i]], {}, 'polygon', ['vertices'])[0]
-                );
-            }
-            if (idx === -1) {
-                this.vertices[this.vertices.length - 1] = this.vertices[0];
-            }
-            if (this.withLines) {
-                if (idx < 0) {
-                    this.borders[this.borders.length - 1].point2 = this.vertices[this.vertices.length - 1];
-                } else {
-                    this.borders[idx].point2 = this.vertices[idx + 1];
+                q = Type.providePoints(this.board, [arguments[i]], {}, 'polygon', ['vertices'])[0];
+                if (q._is_new) {
+                    // Add the point as child of the polygon, but not of the borders.
+                    this.addChild(q);
+                    delete q._is_new;
                 }
-                for (i = idx + 1; i < idx + 1 + le; i++) {
+                this.vertices.splice(idx + i, 0, q);
+            }
+
+            if (this.withLines) {
+                start = idx + 1;
+                if (this.elType === 'polygon') {
+                    if (idx < 0) {
+                        // Add point(s) in the front
+                        this.vertices[this.vertices.length - 1] = this.vertices[0];
+                        this.borders[this.borders.length - 1].point2 = this.vertices[this.vertices.length - 1];
+                    } else {
+                        // Insert point(s) (middle or end)
+                        this.borders[idx].point2 = this.vertices[start];
+                    }
+                } else {
+                    // Add point(s) in the front: do nothing
+                    // Else:
+                    if (idx >= 0) {
+                        if (idx < this.borders.length) {
+                            // Insert point(s) in the middle
+                            this.borders[idx].point2 = this.vertices[start];
+                        } else {
+                            // Add point at the end
+                            start = idx;
+                        }
+                    }
+                }
+                for (i = start; i < start + le; i++) {
                     this.borders.splice(i, 0,
                         this.board.create('segment', [this.vertices[i], this.vertices[i + 1]], this.attr_line)
                     );
                 }
             }
+            this.inherits = [];
+            this.inherits.push(this.vertices, this.borders);
             this.board.update();
 
             return this;
@@ -62049,7 +62670,8 @@ define('base/polygon',[
          * @returns {JXG.Polygon} Reference to the polygon
          */
         removePoints: function (p) {
-            var i, j, idx, nvertices = [], nborders = [],
+            var i, j, j0, idx, firstPoint,
+                nvertices = [], nborders = [],
                 nidx = [], partition = [];
 
             // Partition:
@@ -62060,8 +62682,11 @@ define('base/polygon',[
             // this gives us the borders, that can be removed and the borders we have to create.
 
 
-            // Remove the last vertex which is identical to the first
-            this.vertices = this.vertices.slice(0, this.vertices.length - 1);
+            // In case of polygon: remove the last vertex from the list of vertices since
+            // it is identical to the first
+            if (this.elType === 'polygon') {
+                firstPoint = this.vertices.pop();
+            }
 
             // Collect all valid parameters as indices in nidx
             for (i = 0; i < arguments.length; i++) {
@@ -62069,10 +62694,17 @@ define('base/polygon',[
                 if (Type.isPoint(idx)) {
                     idx = this.findPoint(idx);
                 }
-
                 if (Type.isNumber(idx) && idx > -1 && idx < this.vertices.length && Type.indexOf(nidx, idx) === -1) {
                     nidx.push(idx);
                 }
+            }
+
+            if (nidx.length === 0) {
+                // Wrong index, get out of here
+                if (this.elType === 'polygon') {
+                    this.vertices.push(firstPoint);
+                }
+                return this;
             }
 
             // Remove the polygon from each removed point's children
@@ -62085,7 +62717,7 @@ define('base/polygon',[
             nvertices = this.vertices.slice();
             nborders = this.borders.slice();
 
-            // Initialize the partition
+            // Initialize the partition with an array containing the last point to be removed
             if (this.withLines) {
                 partition.push([nidx[nidx.length - 1]]);
             }
@@ -62095,7 +62727,9 @@ define('base/polygon',[
             for (i = nidx.length - 1; i > -1; i--) {
                 nvertices[nidx[i]] = -1;
 
-                if (this.withLines && (nidx[i] - 1 > nidx[i - 1])) {
+                // Find gaps between the list of points to be removed.
+                // In this case a new partition is added.
+                if (this.withLines && nidx.length > 1 && (nidx[i] - 1 > nidx[i - 1])) {
                     partition[partition.length - 1][1] = nidx[i];
                     partition.push([nidx[i - 1]]);
                 }
@@ -62113,7 +62747,11 @@ define('base/polygon',[
                     this.vertices.push(nvertices[i]);
                 }
             }
-            if (this.vertices[this.vertices.length - 1].id !== this.vertices[0].id) {
+
+            // Close the polygon again
+            if (this.elType === 'polygon' &&
+                this.vertices.length > 1 &&
+                this.vertices[this.vertices.length - 1].id !== this.vertices[0].id) {
                 this.vertices.push(this.vertices[0]);
             }
 
@@ -62123,23 +62761,28 @@ define('base/polygon',[
                     for (j = partition[i][1] - 1; j < partition[i][0] + 1; j++) {
                         // special cases
                         if (j < 0) {
-                            // first vertex is removed, so the last border has to be removed, too
-                            j = 0;
-                            this.board.removeObject(this.borders[nborders.length - 1]);
-                            nborders[nborders.length - 1] = -1;
-                        } else if (j > nborders.length - 1) {
-                            j = nborders.length - 1;
+                            if (this.elType === 'polygon') {
+                                // First vertex is removed, so the last border has to be removed, too
+                                this.board.removeObject(this.borders[nborders.length - 1]);
+                                nborders[nborders.length - 1] = -1;
+                            }
+                        } else if (j < nborders.length) {
+                            this.board.removeObject(this.borders[j]);
+                            nborders[j] = -1;
                         }
-
-                        this.board.removeObject(this.borders[j]);
-                        nborders[j] = -1;
                     }
 
-                    // only create the new segment if it's not the closing border. the closing border is getting a special treatment at the end
-                    // the if clause is newer than the min/max calls inside createSegment; i'm sure this makes the min/max calls obsolete, but
-                    // just to be sure...
+                    // Only create the new segment if it's not the closing border.
+                    // The closing border is getting a special treatment at the end.
                     if (partition[i][1] !== 0 && partition[i][0] !== nvertices.length - 1) {
-                        nborders[partition[i][0] - 1] = this.board.create('segment', [nvertices[Math.max(partition[i][1] - 1, 0)], nvertices[Math.min(partition[i][0] + 1, this.vertices.length - 1)]], this.attr_line);
+                        // nborders[partition[i][0] - 1] = this.board.create('segment', [
+                        //             nvertices[Math.max(partition[i][1] - 1, 0)],
+                        //             nvertices[Math.min(partition[i][0] + 1, this.vertices.length - 1)]
+                        //         ], this.attr_line);
+                        nborders[partition[i][0] - 1] = this.board.create('segment', [
+                            nvertices[partition[i][1] - 1],
+                            nvertices[partition[i][0] + 1]
+                        ], this.attr_line);
                     }
                 }
 
@@ -62151,10 +62794,16 @@ define('base/polygon',[
                 }
 
                 // if the first and/or the last vertex is removed, the closing border is created at the end.
-                if (partition[0][1] === this.vertices.length - 1 || partition[partition.length - 1][1] === 0) {
-                    this.borders.push(this.board.create('segment', [this.vertices[0], this.vertices[this.vertices.length - 2]], this.attr_line));
+                if (this.elType === 'polygon' &&
+                    this.vertices.length > 2 &&  // Avoid trivial case of polygon with 1 vertex
+                    (partition[0][1] === this.vertices.length - 1 || partition[partition.length - 1][1] === 0)) {
+                    this.borders.push(this.board.create('segment',
+                            [this.vertices[0], this.vertices[this.vertices.length - 2]],
+                            this.attr_line));
                 }
             }
+            this.inherits = [];
+            this.inherits.push(this.vertices, this.borders);
 
             this.board.update();
 
@@ -62400,7 +63049,6 @@ define('base/polygon',[
         intersect: function(polygon) {
             return this.sutherlandHodgman(polygon);
         }
-
 
     });
 
@@ -62986,7 +63634,7 @@ define('base/curve',[
          */
         hasPoint: function (x, y, start) {
             var t, checkPoint, len, invMat, c,
-                i, tX, tY,
+                i, tX, tY, isIn,
                 res = [],
                 points, qdt,
                 steps = Type.evaluate(this.visProp.numberpointslow),
@@ -63006,9 +63654,19 @@ define('base/curve',[
                 // 'inherit'
                 prec = this.board.options.precision.hasPoint;
             }
+
+            // From now on, x,y are usrCoords
             checkPoint = new Coords(Const.COORDS_BY_SCREEN, [x, y], this.board, false);
             x = checkPoint.usrCoords[1];
             y = checkPoint.usrCoords[2];
+
+            // Handle inner points of the curve
+            if (this.bezierDegree === 1 && Type.evaluate(this.visProp.hasinnerpoints)) {
+                isIn = Geometry.windingNumber([1, x, y], this.points, true);
+                if (isIn !== 0) {
+                    return true;
+                }
+            }
 
             // We use usrCoords. Only in the final distance calculation
             // screen coords are used
@@ -63027,11 +63685,11 @@ define('base/curve',[
 
             ev_ct = Type.evaluate(this.visProp.curvetype);
             if (ev_ct === 'parameter' || ev_ct === 'polar') {
+
+                // Transform the mouse/touch coordinates
+                // back to the original position of the curve.
+                // This is needed, because we work with the function terms, not the points.
                 if (this.transformations.length > 0) {
-                    /**
-                     * Transform the mouse/touch coordinates
-                     * back to the original position of the curve.
-                     */
                     this.updateTransformMatrix();
                     invMat = Mat.inverse(this.transformMat);
                     c = Mat.matVecMult(invMat, [1, x, y]);
@@ -63054,6 +63712,9 @@ define('base/curve',[
                 }
             } else if (ev_ct === 'plot' ||
                 ev_ct === 'functiongraph') {
+
+                // Here, we can ignore transformations of the curve,
+                // since we are working directly with the points.
 
                 if (!Type.exists(start) || start < 0) {
                     start = 0;
@@ -63960,7 +64621,36 @@ define('base/curve',[
                 }
             }
             return [isTransformed, curve_org];
+        },
+
+        pnpoly: function(x_in, y_in, coord_type) {
+            var i, j, len,
+                x, y, crds,
+                v = this.points,
+                isIn = false;
+
+            if (coord_type === Const.COORDS_BY_USER) {
+                crds = new Coords(Const.COORDS_BY_USER, [x_in, y_in], this.board);
+                x = crds.scrCoords[1];
+                y = crds.scrCoords[2];
+            } else {
+                x = x_in;
+                y = y_in;
+            }
+
+            len = this.points.length;
+            for (i = 0, j = len - 2; i < len - 1; j = i++) {
+                if (((v[i].scrCoords[2] > y) !== (v[j].scrCoords[2] > y)) &&
+                    (x < (v[j].scrCoords[1] - v[i].scrCoords[1]) *
+                    (y - v[i].scrCoords[2]) / (v[j].scrCoords[2] - v[i].scrCoords[2]) + v[i].scrCoords[1])
+                   ) {
+                    isIn = !isIn;
+                }
+            }
+
+            return isIn;
         }
+
 
     });
 
@@ -64129,13 +64819,13 @@ define('base/curve',[
             attr = Type.copyAttributes(attributes, board.options, 'curve');
 
         obj = board.select(parents[0], true);
-        if (Type.isObject(obj) &&
+        if (Type.isTransformationOrArray(parents[1]) &&
+            Type.isObject(obj) &&
             (obj.type === Const.OBJECT_TYPE_CURVE ||
                 obj.type === Const.OBJECT_TYPE_ANGLE ||
                 obj.type === Const.OBJECT_TYPE_ARC ||
                 obj.type === Const.OBJECT_TYPE_CONIC ||
-                obj.type === Const.OBJECT_TYPE_SECTOR) &&
-            Type.isTransformationOrArray(parents[1])) {
+                obj.type === Const.OBJECT_TYPE_SECTOR) ) {
 
             if (obj.type === Const.OBJECT_TYPE_SECTOR) {
                 attr = Type.copyAttributes(attributes, board.options, 'sector');
@@ -65077,7 +65767,7 @@ define('base/curve',[
         /**
          * @ignore
          */
-         c.updateDataArray = function () {
+        c.updateDataArray = function () {
             var i, j = 0,
                 len = this.xterm.length;
 
@@ -70450,17 +71140,21 @@ define('element/composition',[
             throw new Error("JSXGraph: Can't create reflected element with parent types '" +
                 (typeof parents[0]) + "' and '" + (typeof parents[1]) + "'." + errStr);
         }
-
         t = Transform.createTransform(board, [l], {type: 'reflect'});
+
         if (Type.isPoint(org)) {
             r = Point.createPoint(board, [org, t], attr);
+
         // Arcs and sectors are treated as curves
         } else if (org.elementClass === Const.OBJECT_CLASS_CURVE){
             r = Curve.createCurve(board, [org, t], attr);
+
         } else if (org.elementClass === Const.OBJECT_CLASS_LINE){
             r = Line.createLine(board, [org, t], attr);
+
         } else if (org.type === Const.OBJECT_TYPE_POLYGON){
             r = Polygon.createPolygon(board, [org, t], attr);
+
         } else if (org.elementClass === Const.OBJECT_CLASS_CIRCLE) {
             if (attr.type.toLowerCase() === 'euclidean') {
                 // Create a circle element from a circle and a Euclidean transformation
@@ -70472,10 +71166,12 @@ define('element/composition',[
                 // Create a conic element from a circle and a projective transformation
                 r = Circle.createCircle(board, [org, t], attr);
             }
+
         } else {
             throw new Error("JSXGraph: Can't create reflected element with parent types '" +
                 (typeof parents[0]) + "' and '" + (typeof parents[1]) + "'." + errStr);
         }
+
         if (Type.exists(org._is_new)) {
             r.addChild(org);
             delete org._is_new;
@@ -75950,6 +76646,7 @@ define('base/ticks',[
             } else if (!ev_it) {
                 ticksDelta /= (ev_mt + 1);
             }
+            // Now, ticksdelta is the distance between two minor ticks
             this.ticksDelta = ticksDelta;
 
             if (ticksDelta < Mat.eps) {
@@ -76045,6 +76742,8 @@ define('base/ticks',[
          */
         processTickPosition: function (coordsZero, tickPosition, ticksDelta, deltas) {
             var x, y, tickCoords, ti,
+                isLabelPosition,
+                ticksPerLabel = Type.evaluate(this.visProp.ticksperlabel),
                 labelVal = null;
 
             // Calculates tick coordinates
@@ -76067,13 +76766,19 @@ define('base/ticks',[
             // a multiple of the number of minorticks+1
             tickCoords.major = Math.round(tickPosition / ticksDelta) % (Type.evaluate(this.visProp.minorticks) + 1) === 0;
 
+            if (!ticksPerLabel) {
+                // In case of null, 0 or false, majorTicks are labelled
+                ticksPerLabel = Type.evaluate(this.visProp.minorticks) + 1;
+            }
+            isLabelPosition = Math.round(tickPosition / ticksDelta) % (ticksPerLabel) === 0;
+
             // Compute the start position and the end position of a tick.
             // If both positions are out of the canvas, ti is empty.
             ti = this.createTickPath(tickCoords, tickCoords.major);
             if (ti.length === 3) {
                 this.ticks.push(ti);
-                if (tickCoords.major && Type.evaluate(this.visProp.drawlabels)) {
-                    // major tick label
+                if (isLabelPosition && Type.evaluate(this.visProp.drawlabels)) {
+                    // Create a label at this position
                     this.labelsData.push(
                         this.generateLabelData(
                             this.generateLabelText(tickCoords, coordsZero, labelVal),
@@ -76313,7 +77018,7 @@ define('base/ticks',[
 
             // if value is Number
             if (Type.isNumber(value)) {
-                labelText = (Math.round(value * 1.e13) / 1.e13).toString();
+                labelText = (Math.round(value * 1.e11) / 1.e11).toString();
                 if (labelText.length > Type.evaluate(this.visProp.maxlabellength) ||
                         labelText.indexOf('e') !== -1) {
 
@@ -79117,13 +79822,13 @@ define('element/checkbox',[
      * @constructor
      * @type JXG.Text
      *
-     * @param {number,function_number,function_String_String} x,y,label Parent elements for checkbox elements.
+     * @param {number,function_number,function_String,function} x,y,label Parent elements for checkbox elements.
      *                     <p>
      *                     x and y are the coordinates of the lower left corner of the text box.
      *                      The position of the text is fixed,
      *                     x and y are numbers. The position is variable if x or y are functions.
      *                     <p>
-     *                     The label of the input element may be given as string.
+     *                     The label of the input element may be given as string or function.
      *                     <p>
      *                     The value of the checkbox can be controlled with the attribute <tt>checked</tt>
      *                     <p>The HTML node can be accessed with <tt>element.rendNodeCheckbox</tt>
@@ -79232,7 +79937,7 @@ define('element/checkbox',[
             '</span>'
             ];
 
-        //t = JXG.createText(board, par, attr);
+        // 1. Create checkbox element with empty label
         t = board.create('text', par, attr);
         t.type = Type.OBJECT_TYPE_CHECKBOX;
 
@@ -79242,10 +79947,14 @@ define('element/checkbox',[
         t.rendNodeTag = t.rendNodeCheckbox; // Needed for unified treatment in setAttribute
         t.rendNodeTag.disabled = !!attr.disabled;
 
-        t.rendNodeLabel.innerHTML = parents[2];
+        // t.rendNodeLabel.innerHTML = parents[2];
         t.rendNodeCheckbox.id = t.rendNode.id + '_checkbox';
         t.rendNodeLabel.id = t.rendNode.id + '_label';
         t.rendNodeLabel.setAttribute('for', t.rendNodeCheckbox.id);
+
+        // 2. Set parents[2] (string|function) as label of the checkbox element.
+        // abstract.js selects the correct DOM element for the update
+        t.setText(parents[2]);
 
         // This sets the font-size of the checkbox itself
         t.visPropOld.fontsize = "0px";
@@ -79359,14 +80068,14 @@ define('element/input',[
      * @constructor
      * @type JXG.Text
      *
-     * @param {number,function_number,function_String_String} x,y,value,label Parent elements for input elements.
+     * @param {number,function_number,function_String_String,function} x,y,value,label Parent elements for input elements.
      *                     <p>
      *                     x and y are the coordinates of the lower left corner of the text box. The position of the text is fixed,
      *                     x and y are numbers. The position is variable if x or y are functions.
      *                     <p>
-     *                     The default value of the input element may be given as string.
+     *                     The default value of the input element must be given as string.
      *                     <p>
-     *                     The label of the input element may be given  as string.
+     *                     The label of the input element may be given as string or function.
      *
      * @example
      *  // Create an input element at position [1,4].
@@ -79427,18 +80136,22 @@ define('element/input',[
             '</span>'
             ];
 
-        //t = JXG.createText(board, par, attr);
+        // 1. Create input element with empty label
         t = board.create('text', par, attr);
         t.type = Type.OBJECT_TYPE_INPUT;
 
         t.rendNodeLabel = t.rendNode.childNodes[0].childNodes[0];
         t.rendNodeInput = t.rendNode.childNodes[0].childNodes[1];
-        t.rendNodeLabel.innerHTML = parents[3];
+        // t.rendNodeLabel.innerHTML = parents[3];
         t.rendNodeInput.value = parents[2];
         t.rendNodeTag = t.rendNodeInput; // Needed for unified treatment in setAttribute
         t.rendNodeTag.disabled = !!attr.disabled;
         t.rendNodeLabel.id = t.rendNode.id + '_label';
         t.rendNodeInput.id = t.rendNode.id + '_input';
+
+        // 2. Set parents[3] (string|function) as label of the input element.
+        // abstract.js selects the correct DOM element for the update
+        t.setText(parents[3]);
 
         t._value = parents[2];
         t.update = function () {
@@ -79598,7 +80311,7 @@ define('element/button',[
      * @constructor
      * @type JXG.Text
      *
-     * @param {number,function_number,function_String_function} x,y,label,handler Parent elements for button elements.
+     * @param {number,function_number,function_String,function_function} x,y,label,handler Parent elements for button elements.
      *                     <p>
      *                     x and y are the coordinates of the lower left corner of the text box.
      *                      The position of the text is fixed,
@@ -79732,17 +80445,21 @@ define('element/button',[
             //    "\nPossible parents are: [x, y, label, handler]");
         //}
 
+        // 1. Create empty button
         par = [parents[0], parents[1], '<button type="button" style="width:100%;"></button>'];
-
         t = board.create('text', par, attr);
         t.type = Type.OBJECT_TYPE_BUTTON;
 
         t.rendNodeButton = t.rendNode.childNodes[0];
         t.rendNodeButton.id = t.rendNode.id + '_button';
-        t.rendNodeButton.innerHTML = parents[2];
+        // t.rendNodeButton.innerHTML = parents[2];
 
         t.rendNodeTag = t.rendNodeButton; // Needed for unified treatment in setAttribute
         t.rendNodeTag.disabled = !!attr.disabled;
+
+        // 2. Set parents[2] (string|function) as content of the button.
+        // abstract.js selects the correct DOM element for the update
+        t.setText(parents[2]);
 
         // This sets the font-size of the button text
         t.visPropOld.fontsize = "0px";
@@ -80255,9 +80972,9 @@ define('options3d',[
 
     JXG.extend(Options, {
 
-        infobox: {
-            strokeColor: 'black'
-        },
+        // infobox: {
+        //     strokeColor: 'black'
+        // },
 
         axes3d: {
             /**#@+
@@ -80428,6 +81145,19 @@ define('options3d',[
             point2: { visible: false, name: '', label: { visible: true } }
         },
 
+        curve3d: {
+            /**#@+
+             * @visprop
+             */
+
+            highlight: false,
+            tabindex: -1,
+            strokeWidth: 1,
+            numberPointsHigh: 200
+
+            /**#@-*/
+        },
+
         mesh3d: {
             strokeWidth: 1,
             strokeColor: '#9a9a9a',
@@ -80449,7 +81179,8 @@ define('options3d',[
             gradient: 'linear',
             gradientSecondColor: '#ffffff',
 
-            point1: {visible: false, name: ''},
+            point: {visible: false, name: ''},   // Used only in case of point/point
+            point1: {visible: false, name: ''},  // Used only in case of point/direction/range
             point2: {visible: false, name: ''}
         },
 
@@ -80464,10 +81195,13 @@ define('options3d',[
             gradientSecondColor: '#ffffff',
             gradientAngle: Math.PI,
             fillColor: '#a7a7a7',
-            fillOpacity: 0.6
+            fillOpacity: 0.6,
+
+            point: {visible: false, name: '', fixed: true}
         },
 
         point3d: {
+            infoboxDigits: 'auto',
             strokeWidth: 0,
             gradient: 'radial',
             gradientSecondColor: '#555555',
@@ -80487,14 +81221,14 @@ define('options3d',[
             /**
              * Number of intervals the mesh is divided into in direction of parameter u.
              * @type Number
-             * @name Surface3D#stepsU
+             * @name ParametricSurface3D#stepsU
              */
             stepsU: 30,
 
             /**
              * Number of intervals the mesh is divided into in direction of parameter v.
              * @type Number
-             * @name Surface3D#stepsV
+             * @name ParametricSurface3D#stepsV
              */
              stepsV: 30
 
@@ -80541,113 +81275,117 @@ define('options3d',[
  */
 /*global JXG:true, define: true*/
 
-define('3d/threed',['jxg'
-], function (JXG) {
+define('3d/view3d',['jxg', 'options', 'base/constants', 'utils/type', 'math/math', 'base/element','base/composition'],
+function (JXG, Options, Const, Type, Mat, GeometryElement, Composition) {
     "use strict";
 
-    JXG.ThreeD = {};
-
-    return JXG.ThreeD;
-});
-
-/*
-    Copyright 2008-2022
-        Matthias Ehmann,
-        Carsten Miller,
-        Andreas Walter,
-        Alfred Wassermann
-
-    This file is part of JSXGraph.
-
-    JSXGraph is free software dual licensed under the GNU LGPL or MIT License.
-
-    You can redistribute it and/or modify it under the terms of the
-
-      * GNU Lesser General Public License as published by
-        the Free Software Foundation, either version 3 of the License, or
-        (at your option) any later version
-      OR
-      * MIT License: https://github.com/jsxgraph/jsxgraph/blob/master/LICENSE.MIT
-
-    JSXGraph is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details.
-
-    You should have received a copy of the GNU Lesser General Public License and
-    the MIT License along with JSXGraph. If not, see <http://www.gnu.org/licenses/>
-    and <http://opensource.org/licenses/MIT/>.
- */
-/*global JXG:true, define: true*/
-
-define('3d/view3d',['jxg', 'options', 'base/constants', 'utils/type', 'math/math', 'base/element', '3d/threed',
-], function (JXG, Options, Const, Type, Mat, GeometryElement, ThreeD) {
-    "use strict";
-
-    ThreeD.View3D = function (board, parents, attributes) {
-        var bbox3d, coords, size;
-        this.constructor(board, attributes, Const.OBJECT_TYPE_VIEW3D, Const.OBJECT_CLASS_CURVE);
-
-        bbox3d = parents[2];  // [[x1, x2], [y1,y2], [z1,z2]]
-        coords = parents[0]; // llft corner
-        size = parents[1];   // [w, h]
-
-        /**
-         * "Namespace" for all 3D handling
-         */
-        this.D3 = {};
+    /**
+     * 3D view inside of a JXGraph board.
+     *
+     * @class Creates a new 3D view. Do not use this constructor to create a 3D view. Use {@link JXG.Board#create} with
+     * type {@link View3D} instead.
+     *
+     * @augments JXG.GeometryElement
+     * @param {Array} parents Array consisting of lower left corner [x, y] of the view inside the board, [width, height] of the view
+     * and box size [[x1, x2], [y1,y2], [z1,z2]]. If the view's azimuth=0 and elevation=0, the 3D view will cover a rectangle with lower left corner
+     * [x,y] and side lengths [w, h] of the board.
+     */
+     JXG.View3D = function (board, parents, attributes) {
+        this.constructor(board, attributes, Const.OBJECT_TYPE_VIEW3D, Const.OBJECT_CLASS_3D);
 
         /**
          * An associative array containing all geometric objects belonging to the view.
          * Key is the id of the object and value is a reference to the object.
          * @type Object
+         * @private
          */
-        this.D3.objects = {};
+        this.objects = {};
 
         /**
          * An array containing all geometric objects in this view in the order of construction.
          * @type Array
+         * @private
          */
-        this.D3.objectsList = [];
+        this.objectsList = [];
 
         /**
-         * @type {Object} contains the axes of the view or null
+         * An associative array / dictionary to store the objects of the board by name. The name of the object is the key and value is a reference to the object.
+         * @type Object
+         * @private
+         */
+         this.elementsByName = {};
+
+        /**
+         * Default axes of the 3D view, contains the axes of the view or null.
+         *
+         * @type {Object}
          * @default null
          */
-        this.D3.defaultAxes = null;
+        this.defaultAxes = null;
 
         /**
          * 3D-to-2D transformation matrix
-         * @type  {Array} 3 x 4 mattrix
+         * @type  {Array} 3 x 4 matrix
+         * @private
          */
-        this.D3.matrix = [
+        this.matrix3D = [
             [1, 0, 0, 0],
             [0, 1, 0, 0],
             [0, 0, 1, 0]
         ];
 
-        // Bounding box (cube) [[x1, x2], [y1,y2], [z1,z2]]:
-        this.D3.bbox3d = bbox3d;
-        this.D3.coords = coords;
-        this.D3.size = size;
+        /**
+         * Lower left corner [x, y] of the 3D view if elevation and azimuth are set to 0.
+         * @type array
+         * @private
+         */
+        this.llftCorner = parents[0];
+
+        /**
+         * Width and height [w, h] of the 3D view if elevation and azimuth are set to 0.
+         * @type array
+         * @private
+         */
+        this.size = parents[1];
+
+        /**
+         * Bounding box (cube) [[x1, x2], [y1,y2], [z1,z2]] of the 3D view
+         * @type array
+         */
+        this.bbox3D = parents[2];
 
         /**
          * Distance of the view to the origin. In other words, its
-         * the radius of the sphere where the camera sits.
+         * the radius of the sphere where the camera sits.view.board.update
+         * @type Number
          */
-        this.D3.r = -1;
+        this.r = -1;
 
         this.timeoutAzimuth = null;
 
         this.id = this.board.setId(this, 'V');
         this.board.finalizeAdding(this);
         this.elType = 'view3d';
+
         this.methodMap = Type.deepCopy(this.methodMap, {
+            // TODO
         });
     };
-    ThreeD.View3D.prototype = new GeometryElement();
+    JXG.View3D.prototype = new GeometryElement();
 
-    JXG.extend(ThreeD.View3D.prototype, /** @lends ThreeD.View3D.prototype */ {
+    JXG.extend(JXG.View3D.prototype, /** @lends JXG.View3D.prototype */ {
+
+        /**
+         * Creates a new 3D element of type elementType.
+         * @param {String} elementType Type of the element to be constructed given as a string e.g. 'point3d' or 'surface3d'.
+         * @param {Array} parents Array of parent elements needed to construct the element e.g. coordinates for a 3D point or two
+         * 3D points to construct a line. This highly depends on the elementType that is constructed. See the corresponding JXG.create*
+         * methods for a list of possible parameters.
+         * @param {Object} [attributes] An object containing the attributes to be set. This also depends on the elementType.
+         * Common attributes are name, visible, strokeColor.
+         * @returns {Object} Reference to the created element. This is usually a GeometryElement3D, but can be an array containing
+         * two or more elements.
+         */
         create: function (elementType, parents, attributes) {
             var prefix = [],
                 is3D = false,
@@ -80658,59 +81396,117 @@ define('3d/view3d',['jxg', 'options', 'base/constants', 'utils/type', 'math/math
                 prefix.push(this);
             }
             el = this.board.create(elementType, prefix.concat(parents), attributes);
-            if (true || is3D) {
-                this.add(el);
-            }
+
             return el;
         },
 
-        add: function (el) {
-            this.D3.objects[el.id] = el;
-            this.D3.objectsList.push(el);
+        /**
+         * Select a single or multiple elements at once.
+         * @param {String|Object|function} str The name, id or a reference to a JSXGraph 3D element in the 3D view. An object will
+         * be used as a filter to return multiple elements at once filtered by the properties of the object.
+         * @param {Boolean} onlyByIdOrName If true (default:false) elements are only filtered by their id, name or groupId.
+         * The advanced filters consisting of objects or functions are ignored.
+         * @returns {JXG.GeometryElement3D|JXG.Composition}
+         * @example
+         * // select the element with name A
+         * view.select('A');
+         *
+         * // select all elements with strokecolor set to 'red' (but not '#ff0000')
+         * view.select({
+         *   strokeColor: 'red'
+         * });
+         *
+         * // select all points on or below the x/y plane and make them black.
+         * view.select({
+         *   elType: 'point3d',
+         *   Z: function (v) {
+         *     return v <= 0;
+         *   }
+         * }).setAttribute({color: 'black'});
+         *
+         * // select all elements
+         * view.select(function (el) {
+         *   return true;
+         * });
+         */
+        select: function (str, onlyByIdOrName) {
+            var flist, olist, i, l,
+                s = str;
+
+            if (s === null) {
+                return s;
+            }
+
+            // It's a string, most likely an id or a name.
+            if (Type.isString(s) && s !== '') {
+                // Search by ID
+                if (Type.exists(this.objects[s])) {
+                    s = this.objects[s];
+                // Search by name
+                } else if (Type.exists(this.elementsByName[s])) {
+                    s = this.elementsByName[s];
+                // // Search by group ID
+                // } else if (Type.exists(this.groups[s])) {
+                //     s = this.groups[s];
+                }
+
+            // It's a function or an object, but not an element
+            } else if (!onlyByIdOrName &&
+                (Type.isFunction(s) ||
+                 (Type.isObject(s) && !Type.isFunction(s.setAttribute))
+                )) {
+                    flist = Type.filterElements(this.objectsList, s);
+
+                    olist = {};
+                    l = flist.length;
+                    for (i = 0; i < l; i++) {
+                        olist[flist[i].id] = flist[i];
+                    }
+                    s = new Composition(olist);
+
+            // It's an element which has been deleted (and still hangs around, e.g. in an attractor list
+            } else if (Type.isObject(s) && Type.exists(s.id) && !Type.exists(this.objects[s.id])) {
+                s = null;
+            }
+
+            return s;
         },
 
-        /**
-         * Update 3D-to-2D transformation matrix with the actual
-         * elevation and azimuth angles.
-         *
-         * @private
-         */
         update: function () {
-            var D3 = this.D3,
-                e, r, a, f, mat;
+            // Update 3D-to-2D transformation matrix with the actual
+            // elevation and azimuth angles.
 
-            if (!Type.exists(D3.el_slide) ||
-                !Type.exists(D3.az_slide) ||
+            var e, r, a, f, mat;
+
+            if (!Type.exists(this.el_slide) ||
+                !Type.exists(this.az_slide) ||
                 !this.needsUpdate) {
                 return this;
             }
 
-            e = D3.el_slide.Value();
-            r = D3.r;
-            a = D3.az_slide.Value();
+            e = this.el_slide.Value();
+            r = this.r;
+            a = this.az_slide.Value();
             f = r * Math.sin(e);
             mat = [[1, 0, 0,], [0, 1, 0], [0, 0, 1]];
 
-            D3.matrix = [
+            this.matrix3D = [
                 [1, 0, 0, 0],
                 [0, 1, 0, 0],
                 [0, 0, 1, 0]
             ];
 
-            D3.matrix[1][1] = r * Math.cos(a);
-            D3.matrix[1][2] = -r * Math.sin(a);
-            D3.matrix[2][1] = f * Math.sin(a);
-            D3.matrix[2][2] = f * Math.cos(a);
-            D3.matrix[2][3] = Math.cos(e);
+            this.matrix3D[1][1] = r * Math.cos(a);
+            this.matrix3D[1][2] = -r * Math.sin(a);
+            this.matrix3D[2][1] = f * Math.sin(a);
+            this.matrix3D[2][2] = f * Math.cos(a);
+            this.matrix3D[2][3] = Math.cos(e);
 
-            if (true) {
-                mat[1][1] = D3.size[0] / (D3.bbox3d[0][1] - D3.bbox3d[0][0]); // w / d_x
-                mat[2][2] = D3.size[1] / (D3.bbox3d[1][1] - D3.bbox3d[1][0]); // h / d_y
-                mat[1][0] = D3.coords[0] - mat[1][1] * D3.bbox3d[0][0];     // llft_x
-                mat[2][0] = D3.coords[1] - mat[2][2] * D3.bbox3d[1][0];     // llft_y
-
-                D3.matrix = Mat.matMatMult(mat, D3.matrix);
-            }
+            mat[1][1] = this.size[0] / (this.bbox3D[0][1] - this.bbox3D[0][0]); // w / d_x
+            mat[2][2] = this.size[1] / (this.bbox3D[1][1] - this.bbox3D[1][0]); // h / d_y
+            mat[1][0] = this.llftCorner[0] - mat[1][1] * this.bbox3D[0][0];     // llft_x
+            mat[2][0] = this.llftCorner[1] - mat[2][2] * this.bbox3D[1][0];     // llft_y
+            this.matrix3D = Mat.matMatMult(mat, this.matrix3D);
 
             return this;
         },
@@ -80742,19 +81538,20 @@ define('3d/view3d',['jxg', 'options', 'base/constants', 'utils/type', 'math/math
                     vec = x;
                 }
             }
-            return Mat.matVecMult(this.D3.matrix, vec);
+            return Mat.matVecMult(this.matrix3D, vec);
         },
 
         /**
-         * Project a 2D coordinate to the plane through the origin
-         * defined by its normal vector `normal`.
+         * Project a 2D coordinate to the plane defined by the point foot
+         * and the normal vector `normal`.
          *
          * @param  {JXG.Point} point
          * @param  {Array} normal
-         * @returns Array of length 4 containing the projected
+         * @param  {Array} foot
+         * @returns {Array} of length 4 containing the projected
          * point in homogeneous coordinates.
          */
-        project2DTo3DPlane: function (point, normal, foot) {
+        project2DTo3DPlane: function (point2d, normal, foot) {
             var mat, rhs, d, le,
                 n = normal.slice(1),
                 sol = [1, 0, 0, 0];
@@ -80763,11 +81560,11 @@ define('3d/view3d',['jxg', 'options', 'base/constants', 'utils/type', 'math/math
             le = Mat.norm(n, 3);
             d = Mat.innerProduct(foot.slice(1), n, 3) / le;
 
-            mat = this.D3.matrix.slice(0, 3); // True copy
+            mat = this.matrix3D.slice(0, 3); // True copy
             mat.push([0].concat(n));
 
             // 2D coordinates of point:
-            rhs = point.coords.usrCoords.concat([d]);
+            rhs = point2d.coords.usrCoords.concat([d]);
             try {
                 // Prevent singularity in case elevation angle is zero
                 if (mat[2][3] === 1.0) {
@@ -80781,8 +81578,14 @@ define('3d/view3d',['jxg', 'options', 'base/constants', 'utils/type', 'math/math
             return sol;
         },
 
+        /**
+         * Limit 3D coordinates to the bounding cube.
+         *
+         * @param {Array} c3d 3D coordinates [x,y,z]
+         * @returns Array with updated 3D coordinates.
+         */
         project3DToCube: function (c3d) {
-            var cube = this.D3.bbox3d;
+            var cube = this.bbox3D;
             if (c3d[1] < cube[0][0]) { c3d[1] = cube[0][0]; }
             if (c3d[1] > cube[0][1]) { c3d[1] = cube[0][1]; }
             if (c3d[2] < cube[1][0]) { c3d[2] = cube[1][0]; }
@@ -80793,14 +81596,21 @@ define('3d/view3d',['jxg', 'options', 'base/constants', 'utils/type', 'math/math
             return c3d;
         },
 
+        /**
+         * Intersect a ray with the bounding cube of the 3D view.
+         * @param {Array} p 3D coordinates [x,y,z]
+         * @param {Array} d 3D direction vector of the line (array of length 3)
+         * @param {Number} r direction of the ray (positive if r > 0, negative if r < 0).
+         * @returns Affine ratio of the intersection of the line with the cube.
+         */
         intersectionLineCube: function (p, d, r) {
             var rnew, i, r0, r1;
 
             rnew = r;
             for (i = 0; i < 3; i++) {
                 if (d[i] !== 0) {
-                    r0 = (this.D3.bbox3d[i][0] - p[i]) / d[i];
-                    r1 = (this.D3.bbox3d[i][1] - p[i]) / d[i];
+                    r0 = (this.bbox3D[i][0] - p[i]) / d[i];
+                    r1 = (this.bbox3D[i][1] - p[i]) / d[i];
                     if (r < 0) {
                         rnew = Math.max(rnew, Math.min(r0, r1));
                     } else {
@@ -80811,29 +81621,35 @@ define('3d/view3d',['jxg', 'options', 'base/constants', 'utils/type', 'math/math
             return rnew;
         },
 
+        /**
+         * Test if coordinates are inside of the bounding cube.
+         * @param {array} q 3D coordinates [x,y,z] of a point.
+         * @returns Boolean
+         */
         isInCube: function (q) {
-            return q[0] > this.D3.bbox3d[0][0] - Mat.eps && q[0] < this.D3.bbox3d[0][1] + Mat.eps &&
-                q[1] > this.D3.bbox3d[1][0] - Mat.eps && q[1] < this.D3.bbox3d[1][1] + Mat.eps &&
-                q[2] > this.D3.bbox3d[2][0] - Mat.eps && q[2] < this.D3.bbox3d[2][1] + Mat.eps;
+            return q[0] > this.bbox3D[0][0] - Mat.eps && q[0] < this.bbox3D[0][1] + Mat.eps &&
+                q[1] > this.bbox3D[1][0] - Mat.eps && q[1] < this.bbox3D[1][1] + Mat.eps &&
+                q[2] > this.bbox3D[2][0] - Mat.eps && q[2] < this.bbox3D[2][1] + Mat.eps;
         },
 
         /**
          *
-         * @param {*} plane1
-         * @param {*} plane2
-         * @param {*} d
-         * @returns Array of length 2 containing the coordinates of the defining points of
+         * @param {JXG.Plane3D} plane1
+         * @param {JXG.Plane3D} plane2
+         * @param {JXG.Plane3D} d
+         * @returns {Array} of length 2 containing the coordinates of the defining points of
          * of the intersection segment.
          */
         intersectionPlanePlane: function(plane1, plane2, d) {
             var ret = [[], []],
                 p, dir, r, q;
 
-            d = d || plane2.D3.d;
+            d = d || plane2.d;
 
-            p = Mat.Geometry.meet3Planes(plane1.D3.normal, plane1.D3.d, plane2.D3.normal, d,
-                     Mat.crossProduct(plane1.D3.normal, plane2.D3.normal), 0);
-            dir = Mat.Geometry.meetPlanePlane(plane1.D3.dir1, plane1.D3.dir2, plane2.D3.dir1, plane2.D3.dir2);
+            p = Mat.Geometry.meet3Planes(
+                        plane1.normal, plane1.d, plane2.normal, d, Mat.crossProduct(plane1.normal, plane2.normal
+                    ), 0);
+            dir = Mat.Geometry.meetPlanePlane(plane1.vec1, plane1.vec2, plane2.vec1, plane2.vec2);
             r = this.intersectionLineCube(p, dir, Infinity);
             q = Mat.axpy(r, dir, p);
             if (this.isInCube(q)) {
@@ -80847,7 +81663,39 @@ define('3d/view3d',['jxg', 'options', 'base/constants', 'utils/type', 'math/math
             return ret;
         },
 
-        getMesh: function (X, Y, Z, interval_u, interval_v) {
+        /**
+         * Generate mesh for a surface / plane.
+         * Returns array [dataX, dataY] for a JSXGraph curve's updateDataArray function.
+         * @param {Array,Function} func
+         * @param {Array} interval_u
+         * @param {Array} interval_v
+         * @returns Array
+         * @private
+         *
+         * @example
+         *  var el = view.create('curve', [[], []]);
+         *  el.updateDataArray = function () {
+         *      var steps_u = Type.evaluate(this.visProp.stepsu),
+         *           steps_v = Type.evaluate(this.visProp.stepsv),
+         *           r_u = Type.evaluate(this.range_u),
+         *           r_v = Type.evaluate(this.range_v),
+         *           func, ret;
+         *
+         *      if (this.F !== null) {
+         *          func = this.F;
+         *      } else {
+         *          func = [this.X, this.Y, this.Z];
+         *      }
+         *      ret = this.view.getMesh(func,
+         *          r_u.concat([steps_u]),
+         *          r_v.concat([steps_v]));
+         *
+         *      this.dataX = ret[0];
+         *      this.dataY = ret[1];
+         *  };
+         *
+         */
+        getMesh: function (func, interval_u, interval_v) {
             var i_u, i_v, u, v, c2d,
                 delta_u, delta_v,
                 p = [0, 0, 0],
@@ -80864,9 +81712,11 @@ define('3d/view3d',['jxg', 'options', 'base/constants', 'utils/type', 'math/math
                 u = interval_u[0] + delta_u * i_u;
                 for (i_v = 0; i_v <= steps_v; i_v++) {
                     v = interval_v[0] + delta_v * i_v;
-                    p[0] = X(u, v);
-                    p[1] = Y(u, v);
-                    p[2] = Z(u, v);
+                    if (Type.isFunction(func)) {
+                        p = func(u, v);
+                    } else {
+                        p = [func[0](u, v), func[1](u, v), func[2](u, v)];
+                    }
                     c2d = this.project3DTo2D(p);
                     dataX.push(c2d[1]);
                     dataY.push(c2d[2]);
@@ -80879,9 +81729,11 @@ define('3d/view3d',['jxg', 'options', 'base/constants', 'utils/type', 'math/math
                 v = interval_v[0] + delta_v * i_v;
                 for (i_u = 0; i_u <= steps_u; i_u++) {
                     u = interval_u[0] + delta_u * i_u;
-                    p[0] = X(u, v);
-                    p[1] = Y(u, v);
-                    p[2] = Z(u, v);
+                    if (Type.isFunction(func)) {
+                        p = func(u, v);
+                    } else {
+                        p = [func[0](u, v), func[1](u, v), func[2](u, v)];
+                    }
                     c2d = this.project3DTo2D(p);
                     dataX.push(c2d[1]);
                     dataY.push(c2d[2]);
@@ -80893,21 +81745,27 @@ define('3d/view3d',['jxg', 'options', 'base/constants', 'utils/type', 'math/math
             return [dataX, dataY];
         },
 
+        /**
+         *
+         */
         animateAzimuth: function () {
-            var s = this.D3.az_slide._smin,
-                e = this.D3.az_slide._smax,
+            var s = this.az_slide._smin,
+                e = this.az_slide._smax,
                 sdiff = e - s,
-                newVal = this.D3.az_slide.Value() + 0.1;
+                newVal = this.az_slide.Value() + 0.1;
 
-            this.D3.az_slide.position = ((newVal - s) / sdiff);
-            if (this.D3.az_slide.position > 1) {
-                this.D3.az_slide.position = 0.0;
+            this.az_slide.position = ((newVal - s) / sdiff);
+            if (this.az_slide.position > 1) {
+                this.az_slide.position = 0.0;
             }
             this.board.update();
 
             this.timeoutAzimuth = setTimeout(function () { this.animateAzimuth(); }.bind(this), 200);
         },
 
+        /**
+         *
+         */
         stopAzimuth: function () {
             clearTimeout(this.timeoutAzimuth);
             this.timeoutAzimuth = null;
@@ -80927,8 +81785,9 @@ define('3d/view3d',['jxg', 'options', 'base/constants', 'utils/type', 'math/math
      * @param {Array_Array_Array} lower,dim,cube  Here, lower is an array of the form [x, y] and
      * dim is an array of the form [w, h].
      * The arrays [x, y] and [w, h] define the 2D frame into which the 3D cube is
-     * (roughly) projected.
-     * cube is an array of the form [[x1, x2], [y1, y2], [z1, z2]]
+     * (roughly) projected. If the view's azimuth=0 and elevation=0, the 3D view will cover a rectangle with lower left corner
+     * [x,y] and side lengths [w, h] of the board.
+     * The array 'cube' is of the form [[x1, x2], [y1, y2], [z1, z2]]
      * which determines the coordinate ranges of the 3D cube.
      *
      * @example
@@ -80962,43 +81821,38 @@ define('3d/view3d',['jxg', 'options', 'base/constants', 'utils/type', 'math/math
      *     (function() {
      *         var board = JXG.JSXGraph.initBoard('JXGdd06d90e-be5d-4531-8f0b-65fc30b1a7c7',
      *             {boundingbox: [-8, 8, 8,-8], axis: false, showcopyright: false, shownavigation: false});
-     *                             var bound = [-5, 5];
-     *                             var view = board.create('view3d',
-     *                                 [[-6, -3], [8, 8],
-     *                                 [bound, bound, bound]],
-     *                                 {
-     *                                     // Main axes
-     *                                     axesPosition: 'center',
-     *                                     xAxis: { strokeColor: 'blue', strokeWidth: 3},
-     *
-     *                                     // Planes
-     *                                     xPlaneRear: { fillColor: 'yellow',  mesh3d: {visible: false}},
-     *                                     yPlaneFront: { visible: true, fillColor: 'blue'},
-     *
-     *                                     // Axes on planes
-     *                                     xPlaneRearYAxis: {strokeColor: 'red'},
-     *                                     xPlaneRearZAxis: {strokeColor: 'red'},
-     *
-     *                                     yPlaneFrontXAxis: {strokeColor: 'blue'},
-     *                                     yPlaneFrontZAxis: {strokeColor: 'blue'},
-     *
-     *                                     zPlaneFrontXAxis: {visible: false},
-     *                                     zPlaneFrontYAxis: {visible: false}
-     *                                 });
-     *
+     *         var bound = [-5, 5];
+     *         var view = board.create('view3d',
+     *             [[-6, -3], [8, 8],
+     *             [bound, bound, bound]],
+     *             {
+     *                 // Main axes
+     *                 axesPosition: 'center',
+     *                 xAxis: { strokeColor: 'blue', strokeWidth: 3},
+     *                 // Planes
+     *                 xPlaneRear: { fillColor: 'yellow',  mesh3d: {visible: false}},
+     *                 yPlaneFront: { visible: true, fillColor: 'blue'},
+     *                 // Axes on planes
+     *                 xPlaneRearYAxis: {strokeColor: 'red'},
+     *                 xPlaneRearZAxis: {strokeColor: 'red'},
+     *                 yPlaneFrontXAxis: {strokeColor: 'blue'},
+     *                 yPlaneFrontZAxis: {strokeColor: 'blue'},
+     *                 zPlaneFrontXAxis: {visible: false},
+     *                 zPlaneFrontYAxis: {visible: false}
+     *             });
      *     })();
      *
      * </script><pre>
      *
      */
-    ThreeD.createView3D = function (board, parents, attributes) {
-        var view, frame, attr,
+     JXG.createView3D = function (board, parents, attributes) {
+        var view, attr,
             x, y, w, h,
             coords = parents[0], // llft corner
             size = parents[1];   // [w, h]
 
         attr = Type.copyAttributes(attributes, board.options, 'view3d');
-        view = new ThreeD.View3D(board, parents, attr);
+        view = new JXG.View3D(board, parents, attr);
         view.defaultAxes = view.create('axes3d', parents, attributes);
 
         x = coords[0];
@@ -81007,36 +81861,11 @@ define('3d/view3d',['jxg', 'options', 'base/constants', 'utils/type', 'math/math
         h = size[1];
 
         /**
-         * Frame around the view object
-         */
-        if (false) {
-            frame = board.create('polygon', [
-                [coords[0], coords[1] + size[1]],           // ulft
-                [coords[0], coords[1]],                     // llft
-                [coords[0] + size[0], coords[1]],           // lrt
-                [coords[0] + size[0], coords[1] + size[1]], // urt
-            ], {
-                fillColor: 'none',
-                highlightFillColor: 'none',
-                highlight: false,
-                vertices: {
-                    fixed: true,
-                    visible: false
-                },
-                borders: {
-                    strokeColor: 'black',
-                    highlight: false,
-                    strokeWidth: 0.5,
-                    dash: 4
-                }
-            });
-            //view.add(frame);
-        }
-
-        /**
          * Slider to adapt azimuth angle
+         * @name JXG.View3D#az_slide
+         * @type {Slider}
          */
-        view.D3.az_slide = board.create('slider', [[x - 1, y - 2], [x + w + 1, y - 2], [0, 1.0, 2 * Math.PI]], {
+        view.az_slide = board.create('slider', [[x - 1, y - 2], [x + w + 1, y - 2], [0, 1.0, 2 * Math.PI]], {
             style: 6, name: 'az',
             point1: { frozen: true },
             point2: { frozen: true }
@@ -81044,39 +81873,60 @@ define('3d/view3d',['jxg', 'options', 'base/constants', 'utils/type', 'math/math
 
         /**
          * Slider to adapt elevation angle
+         *
+         * @name JXG.View3D#el_slide
+         * @type {Slider}
          */
-        view.D3.el_slide = board.create('slider', [[x - 1, y], [x - 1, y + h], [0, 0.30, Math.PI / 2]], {
+        view.el_slide = board.create('slider', [[x - 1, y], [x - 1, y + h], [0, 0.30, Math.PI / 2]], {
             style: 6, name: 'el',
             point1: { frozen: true },
             point2: { frozen: true }
         });
 
         view.board.highlightInfobox = function (x, y, el) {
-            var d;
+            var d, i,
+                c3d, foot,
+                brd = el.board,
+                p = null;
 
-            if (Type.exists(el.D3)) {
-                d = Type.evaluate(el.visProp.infoboxdigits);
+            // Search 3D parent
+            for (i = 0; i < el.parents.length; i++) {
+                p = brd.objects[el.parents[i]];
+                if (p.is3D) {
+                    break;
+                }
+            }
+            if (p) {
+                foot = [1, 0, 0, p.coords[3]];
+                c3d = view.project2DTo3DPlane(p.element2D, [1, 0, 0, 1], foot);
+                if (!view.isInCube(c3d)) {
+                    view.board.highlightCustomInfobox('', p);
+                    return;
+                }
+                d = Type.evaluate(p.visProp.infoboxdigits);
                 if (d === 'auto') {
                     view.board.highlightCustomInfobox('(' +
-                        Type.autoDigits(el.D3.X()) + ' | ' +
-                        Type.autoDigits(el.D3.Y()) + ' | ' +
-                        Type.autoDigits(el.D3.Z()) + ')', el);
+                        Type.autoDigits(p.X()) + ' | ' +
+                        Type.autoDigits(p.Y()) + ' | ' +
+                        Type.autoDigits(p.Z()) + ')', p);
                 } else {
                     view.board.highlightCustomInfobox('(' +
-                        Type.toFixed(el.D3.X(), d) + ' | ' +
-                        Type.toFixed(el.D3.Y(), d) + ' | ' +
-                        Type.toFixed(el.D3.Z(), d) + ')', el);
+                        Type.toFixed(p.X(), d) + ' | ' +
+                        Type.toFixed(p.Y(), d) + ' | ' +
+                        Type.toFixed(p.Z(), d) + ')', p);
                 }
             } else {
                 view.board.highlightCustomInfobox('(' + x + ', ' + y + ')', el);
             }
         };
 
+        view.board.update();
+
         return view;
     };
-    JXG.registerElement('view3d', ThreeD.createView3D);
+    JXG.registerElement('view3d', JXG.createView3D);
 
-    return ThreeD.View3D;
+    return JXG.View3D;
 });
 
 
@@ -81110,15 +81960,98 @@ define('3d/view3d',['jxg', 'options', 'base/constants', 'utils/type', 'math/math
  */
 /*global JXG:true, define: true*/
 
-/**
- * Create axes and rear and front walls of the
- * view3d bounding box bbox3d.
- */
-define('3d/box3d',['jxg', 'utils/type', 'math/math', 'math/geometry', '3d/view3d'
-], function (JXG, Type, Mat, Geometry, ThreeD) {
+define('3d/element3d',['jxg'], function (JXG) {
     "use strict";
 
-    ThreeD.createAxes = function (board, parents, attributes) {
+    /**
+     * Constructs a new GeometryElement3D object.
+     * @class This is the basic class for 3D geometry elements like Point3D and Line3D.
+     * @constructor
+     * @param {string} elType
+     * @borrows JXG.EventEmitter#on as this.on
+     * @borrows JXG.EventEmitter#off as this.off
+     * @borrows JXG.EventEmitter#triggerEventHandlers as this.triggerEventHandlers
+     * @borrows JXG.EventEmitter#eventHandlers as this.eventHandlers
+     */
+    JXG.GeometryElement3D = function (view, elType) {
+        this.elType = elType;
+        this.id = this.board.setId(this, elType);
+
+        /**
+         * Pointer to the view3D in which the elemtn is constructed
+         * @type JXG.View3D
+         * @private
+         */
+        this.view = view;
+
+        /**
+         * Link to the 2D element(s) used to visualize the 3D element
+         * in a view. In case, there are several 2D elements, it is an array.
+         *
+         * @type JXG.GeometryElement,Array
+         * @private
+         *
+         * @example
+         *   p.element2D;
+         */
+        this.element2D = null;
+
+        /**
+         * If this property exists (and is true) the element is a 3D element.
+         *
+         * @type Boolean
+         * @private
+         */
+        this.is3D = true;
+        this.view.objects[this.id] = this;
+        this.view.objectsList.push(this);
+
+        if (this.name !== '') {
+            this.view.elementsByName[this.name] = this;
+        }
+
+    };
+
+    return JXG.GeometryElement3D;
+});
+/*
+    Copyright 2008-2022
+        Matthias Ehmann,
+        Carsten Miller,
+        Andreas Walter,
+        Alfred Wassermann
+
+    This file is part of JSXGraph.
+
+    JSXGraph is free software dual licensed under the GNU LGPL or MIT License.
+
+    You can redistribute it and/or modify it under the terms of the
+
+      * GNU Lesser General Public License as published by
+        the Free Software Foundation, either version 3 of the License, or
+        (at your option) any later version
+      OR
+      * MIT License: https://github.com/jsxgraph/jsxgraph/blob/master/LICENSE.MIT
+
+    JSXGraph is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public License and
+    the MIT License along with JSXGraph. If not, see <http://www.gnu.org/licenses/>
+    and <http://opensource.org/licenses/MIT/>.
+ */
+/*global JXG:true, define: true*/
+
+/**
+ * Create axes and rear and front walls of the
+ * view3d bounding box bbox3D.
+ */
+define('3d/box3d',['jxg', 'utils/type', 'math/math', 'math/geometry'], function (JXG, Type, Mat, Geometry) {
+    "use strict";
+
+    JXG.createAxes3D = function (board, parents, attributes) {
         var view = parents[0],
             i, j, k, i1, i2,
             attr,
@@ -81135,10 +82068,10 @@ define('3d/box3d',['jxg', 'utils/type', 'math/math', 'math/geometry', '3d/view3d
             ticks_attr,
             axes = {};
 
-        if (Type.exists(view.D3)) {
+        if (Type.exists(view.bbox3D)) {
             for (i = 0; i < directions.length; i++) {
-                rear[i] = view.D3.bbox3d[i][0];
-                front[i] = view.D3.bbox3d[i][1];
+                rear[i] = view.bbox3D[i][0];
+                front[i] = view.bbox3D[i][1];
             }
         } else {
             for (i = 0; i < directions.length; i++) {
@@ -81190,7 +82123,7 @@ define('3d/box3d',['jxg', 'utils/type', 'math/math', 'math/geometry', '3d/view3d
         }
 
         // Origin (2D point)
-        axes.O = board.create('intersection', [
+        axes.O = view.create('intersection', [
                 axes[directions[0] + suffixAxis],
                 axes[directions[1] + suffixAxis]
             ], {
@@ -81218,9 +82151,8 @@ define('3d/box3d',['jxg', 'utils/type', 'math/math', 'math/geometry', '3d/view3d
                 na = dir + 'Plane' + sides[j];
 
                 attr = Type.copyAttributes(attributes, board.options, 'axes3d', na);
-                axes[na] =
-                    view.create('plane3d', [from, vec1, vec2, range1, range2], attr);
-                axes[na].D3.elType = 'axisplane3d';
+                axes[na] = view.create('plane3d', [from, vec1, vec2, range1, range2], attr);
+                axes[na].elType = 'axisplane3d';
             }
         }
 
@@ -81245,16 +82177,16 @@ define('3d/box3d',['jxg', 'utils/type', 'math/math', 'math/geometry', '3d/view3d
                     attr = Type.copyAttributes(attributes, board.options, 'axes3d', na);
                     axes[na] = view.create('axis3d', [from, to], attr);
                     axes[na_parent].addChild(axes[na]);
-                    axes[na_parent].inherits.push(axes[na]);
+                    axes[na_parent].element2D.inherits.push(axes[na]);  // TODO: Access of element2D is not nice
                 }
             }
         }
 
         return axes;
     };
-    JXG.registerElement('axes3d', ThreeD.createAxes);
+    JXG.registerElement('axes3d', JXG.createAxes3D);
 
-    ThreeD.createAxis = function (board, parents, attributes) {
+    JXG.createAxis3D = function (board, parents, attributes) {
         var view = parents[0],
             attr,
             start = parents[1],
@@ -81263,7 +82195,7 @@ define('3d/box3d',['jxg', 'utils/type', 'math/math', 'math/geometry', '3d/view3d
 
         // Use 2D points to create axis
         attr = Type.copyAttributes(attributes.point1, board.options, 'axis3d', 'point1');
-        el_start = board.create('point', [
+        el_start = view.create('point', [
             (function (xx, yy, zz) {
                 return function () { return view.project3DTo2D(xx, yy, zz)[1]; };
             })(start[0], start[1], start[2]),
@@ -81273,7 +82205,7 @@ define('3d/box3d',['jxg', 'utils/type', 'math/math', 'math/geometry', '3d/view3d
         ], attr);
 
         attr = Type.copyAttributes(attributes.point2, board.options, 'axis3d', 'point2');
-        el_end = board.create('point', [
+        el_end = view.create('point', [
             (function (xx, yy, zz) {
                 return function () { return view.project3DTo2D(xx, yy, zz)[1]; };
             })(end[0], end[1], end[2]),
@@ -81283,22 +82215,22 @@ define('3d/box3d',['jxg', 'utils/type', 'math/math', 'math/geometry', '3d/view3d
         ], attr);
 
         attr = Type.copyAttributes(attributes, board.options, 'axis3d');
-        el = board.create('arrow', [el_start, el_end], attr);
+        el = view.create('arrow', [el_start, el_end], attr);
 
         return el;
     };
-    JXG.registerElement('axis3d', ThreeD.createAxis);
+    JXG.registerElement('axis3d', JXG.createAxis3D);
 
-    ThreeD.createMesh = function (board, parents, attr) {
+    JXG.createMesh3D = function (board, parents, attr) {
         var view = parents[0],
             point = parents[1],
-            vec1 = parents[2],
+            dir1 = parents[2],
             range1 = parents[3],
-            vec2 = parents[4],
+            dir2 = parents[4],
             range2 = parents[5],
             el;
 
-        el = board.create('curve', [[], []], attr);
+        el = view.create('curve', [[], []], attr);
         el.updateDataArray = function () {
             var s1 = range1[0],
                 e1 = range1[1],
@@ -81313,10 +82245,16 @@ define('3d/box3d',['jxg', 'utils/type', 'math/math', 'math/geometry', '3d/view3d
             this.dataX = [];
             this.dataY = [];
 
+            if (Type.isFunction(point)) {
+                q = point().slice(1);
+            } else {
+                for (i = 0; i < 3; i++) {
+                    q[i] = Type.evaluate(point[i]);
+                }
+            }
             for (i = 0; i < 3; i++) {
-                q[i] = Type.evaluate(point[i]);
-                v1[i] = Type.evaluate(vec1[i]);
-                v2[i] = Type.evaluate(vec2[i]);
+                v1[i] = Type.evaluate(dir1[i]);
+                v2[i] = Type.evaluate(dir2[i]);
             }
             l1 = JXG.Math.norm(v1, 3);
             l2 = JXG.Math.norm(v2, 3);
@@ -81324,20 +82262,21 @@ define('3d/box3d',['jxg', 'utils/type', 'math/math', 'math/geometry', '3d/view3d
                 v1[i] /= l1;
                 v2[i] /= l2;
             }
-            if (false) {
-                sol = Mat.Geometry.getPlaneBounds(v1, v2, q, s1, e1);
-                if (sol !== null) {
-                    s1 = sol[0];
-                    e1 = sol[1];
-                    s2 = sol[2];
-                    e2 = sol[3];
-                }
-            }
+
+            // sol = Mat.Geometry.getPlaneBounds(v1, v2, q, s1, e1);
+            // if (sol !== null) {
+            //     s1 = sol[0];
+            //     e1 = sol[1];
+            //     s2 = sol[2];
+            //     e2 = sol[3];
+            // }
 
             res = view.getMesh(
-                function(u, v) { return q[0] + u * v1[0] + v * v2[0]; },
-                function(u, v) { return q[1] + u * v1[1] + v * v2[1]; },
-                function(u, v) { return q[2] + u * v1[2] + v * v2[2]; },
+                [
+                    function(u, v) { return q[0] + u * v1[0] + v * v2[0]; },
+                    function(u, v) { return q[1] + u * v1[1] + v * v2[1]; },
+                    function(u, v) { return q[2] + u * v1[2] + v * v2[2]; }
+                ],
                 [Math.ceil(s1), Math.floor(e1), (Math.ceil(e1) - Math.floor(s1)) / step],
                 [Math.ceil(s2), Math.floor(e2), (Math.ceil(e2) - Math.floor(s2)) / step]);
             this.dataX = res[0];
@@ -81345,7 +82284,7 @@ define('3d/box3d',['jxg', 'utils/type', 'math/math', 'math/geometry', '3d/view3d
         };
         return el;
     };
-    JXG.registerElement('mesh3d', ThreeD.createMesh);
+    JXG.registerElement('mesh3d', JXG.createMesh3D);
 
 });
 /*
@@ -81378,71 +82317,612 @@ define('3d/box3d',['jxg', 'utils/type', 'math/math', 'math/geometry', '3d/view3d
  */
 /*global JXG:true, define: true*/
 
-define('3d/curve3d',['jxg', 'utils/type', '3d/view3d'
-], function (JXG, Type, ThreeD) {
+define('3d/point3d',['jxg', 'base/constants', 'math/math', 'math/geometry', 'utils/type' //, '3d/element3d'
+], function (JXG, Const, Mat, Geometry, Type) { //, GeometryElement3D) {
     "use strict";
 
-    ThreeD.createCurve = function (board, parents, attr) {
-        var view = parents[0],
-            D3, el;
+    /**
+     * A 3D point is the basic geometric element.
+     * @class Creates a new 3D point object. Do not use this constructor to create a 3D point. Use {@link JXG.Board#create} with
+     * type {@link Point3D} instead.
+     * @augments JXG.GeometryElement3D
+     * @augments JXG.GeometryElement
+     * @param {JXG.View3D} view The 3D view the point is drawn on.
+     * @param {Function,Array} F Array of numbers, array of functions or function returning an array with defines the user coordinates of the point.
+     * @parame {JXG.GeometryElement3D} slide Object the 3D point should be bound to. If null, the point is a free point.
+     * @param {Object} attributes An object containing visual properties like in {@link JXG.Options#point3d} and
+     * {@link JXG.Options#elements}, and optional a name and an id.
+     * @see JXG.Board#generateName
+     */
+    JXG.Point3D = function (view, F, slide, attributes) {
+        this.constructor(view.board, attributes, Const.OBJECT_TYPE_POINT3D, Const.OBJECT_CLASS_3D);
+        this.constructor3D(view, 'point3d');
 
-        D3 = {
-            elType: 'curve3D',
-            X: parents[1],
-            Y: parents[2],
-            Z: parents[3],
-        };
-        D3.F = [D3.X, D3.Y, D3.Z];
+        this.id = this.view.board.setId(this, 'P3D');
+        this.board.finalizeAdding(this);
 
-        el = board.create('curve', [[], []], attr);
-        el.D3 = D3;
+        /**
+         * Homogeneous coordinates of a Point3D, i.e. array of length 4: [w, x, y, z]. Usually, w=1 for finite points and w=0 for points
+         * which are infinitely far.
+         *
+         * @example
+         *   p.coords;
+         *
+         * @name Point3D#coords
+         * @type Array
+         * @private
+         */
+        this.coords = [0, 0, 0, 0];
 
-        if (Type.isFunction(el.D3.X)) {
-            // 3D curve given as t -> [X(t), Y(t), Z(t)]
+        /**
+         * Function or array of functions or array of numbers defining the coordinates of the point, used in {@link updateCoords}.
+         *
+         * @name F
+         * @memberOf Point3D
+         * @function
+         * @private
+         *
+         * @see updateCoords
+         */
+        this.F = F;
 
-            el.D3.range = parents[4];
-            el.updateDataArray = function () {
-                var steps = Type.evaluate(this.visProp.numberpointshigh),
-                    s = Type.evaluate(this.D3.range[0]),
-                    e = Type.evaluate(this.D3.range[1]),
-                    delta = (e - s) / (steps - 1),
-                    c2d, t, i,
-                    p = [0, 0, 0];
+        /**
+         * Optional slide element, i.e. element the Point3D lives on.
+         *
+         * @example
+         *   p.slide;
+         *
+         * @name Point3D#slide
+         * @type JXG.GeometryElement3D
+         * @default null
+         * @private
+         *
+         */
+        this.slide = slide;
 
-                this.dataX = [];
-                this.dataY = [];
+        /**
+         * Get x-coordinate of a 3D point.
+         *
+         * @name X
+         * @memberOf Point3D
+         * @function
+         * @returns {Number}
+         *
+         * @example
+         *   p.X();
+         */
+        this.X = function () { return this.coords[1]; };
 
-                for (t = s; t <= e; t += delta) {
-                    for (i = 0; i < 3; i++) {
-                        p[i] = this.D3.F[i](t);
+        /**
+         * Get y-coordinate of a 3D point.
+         *
+         * @name Y
+         * @memberOf Point3D
+         * @function
+         * @returns Number
+         *
+         * @example
+         *   p.Y();
+         */
+        this.Y = function () { return this.coords[2]; };
+
+        /**
+         * Get z-coordinate of a 3D point.
+         *
+         * @name Z
+         * @memberOf Point3D
+         * @function
+         * @returns Number
+         *
+         * @example
+         *   p.Z();
+         */
+        this.Z = function () { return this.coords[3]; };
+
+        /**
+         * Store the last position of the 2D point for the optimizer.
+         *
+         * @type Array
+         * @private
+         */
+        this._params = null;
+
+        this._c2d = null;
+
+        this.methodMap = Type.deepCopy(this.methodMap, {
+            // TODO
+        });
+    };
+    JXG.Point3D.prototype = new JXG.GeometryElement();
+    Type.copyPrototypeMethods(JXG.Point3D, JXG.GeometryElement3D, 'constructor3D');
+
+    JXG.extend(JXG.Point3D.prototype, /** @lends JXG.Point3D.prototype */ {
+        /**
+         * Update the the homogeneous coords array.
+         *
+         * @name updateCoords
+         * @memberOf Point3D
+         * @function
+         * @returns {Object} Reference to the Point3D object
+         * @private
+         * @example
+         *    p.updateCoords();
+         */
+        updateCoords: function () {
+            var i;
+
+            if (Type.isFunction(this.F)) {
+                this.coords = [1].concat(Type.evaluate(this.F));
+            } else {
+                this.coords[0] = 1;
+                for (i = 0; i < 3; i++) {
+                    // Attention: if F is array of numbers, coords are not updated.
+                    // Otherwise, dragging will not work anymore.
+                    if (Type.isFunction(this.F[i])) {
+                        this.coords[i + 1] = Type.evaluate(this.F[i]);
                     }
-                    c2d = view.project3DTo2D(p);
-                    this.dataX.push(c2d[1]);
-                    this.dataY.push(c2d[2]);
                 }
-            };
-        } else if (Type.isArray(el.D3.X)) {
-            // 3D curve given as array of 3D points
+            }
+            return this;
+        },
 
-            el.updateDataArray = function () {
-                var i,
-                    le = this.D3.X.length,
-                    c2d;
+        /**
+         * Initialize the coords array.
+         *
+         * @private
+         * @returns {Object} Reference to the Point3D object
+         */
+        initCoords: function () {
+            var i;
 
-                this.dataX = [];
-                this.dataY = [];
-
-                for (i = 0; i < le; i++) {
-                    c2d = view.project3DTo2D([this.D3.X[i], this.D3.Y[i], this.D3.Z[i]]);
-                    this.dataX.push(c2d[1]);
-                    this.dataY.push(c2d[2]);
+            if (Type.isFunction(this.F)) {
+                this.coords = [1].concat(Type.evaluate(this.F));
+            } else {
+                this.coords[0] = 1;
+                for (i = 0; i < 3; i++) {
+                    this.coords[i + 1] = Type.evaluate(this.F[i]);
                 }
+            }
+            return this;
+        },
+
+        /**
+         * Normalize homogeneous coordinates such the the first coordinate (the w-coordinate is equal to 1 or 0)-
+         *
+         * @name normalizeCoords
+         * @memberOf Point3D
+         * @function
+         * @returns {Object} Reference to the Point3D object
+         * @private
+         * @example
+         *    p.normalizeCoords();
+         */
+        normalizeCoords: function () {
+            if (Math.abs(this.coords[0]) > Mat.eps) {
+                this.coords[1] /= this.coords[0];
+                this.coords[2] /= this.coords[0];
+                this.coords[3] /= this.coords[0];
+                this.coords[0] = 1.0;
+            }
+            return this;
+        },
+
+        /**
+         * Set the position of a 3D point.
+         *
+         * @name setPosition
+         * @memberOf Point3D
+         * @function
+         * @param {Array} coords 3D coordinates. Either of the form [x,y,z] (Euclidean) or [w,x,y,z] (homogeneous).
+         * @param {Boolean} [noevent] If true, no events are triggered.
+         * @returns {Object} Reference to the Point3D object
+         *
+         * @example
+         *    p.setPosition([1, 3, 4]);
+         */
+        setPosition: function (coords, noevent) {
+            var c = this.coords,
+                oc = this.coords.slice(); // Copy of original values
+
+            if (coords.length === 3) { // Euclidean coordinates
+                c[0] = 1.0;
+                c[1] = coords[0];
+                c[2] = coords[1];
+                c[3] = coords[2];
+            } else { // Homogeneous coordinates (normalized)
+                c[0] = coords[0];
+                c[1] = coords[1];
+                c[2] = coords[2];
+                c[3] = coords[2];
+                this.normalizeCoords();
+            }
+
+            // console.log(el.emitter, !noevent, oc[0] !== c[0] || oc[1] !== c[1] || oc[2] !== c[2] || oc[3] !== c[3]);
+            // Not yet working
+            // if (el.emitter && !noevent &&
+            //     (oc[0] !== c[0] || oc[1] !== c[1] || oc[2] !== c[2] || oc[3] !== c[3])) {
+            //     this.triggerEventHandlers(['update3D'], [oc]);
+            // }
+            return this;
+        },
+
+        update: function (drag) {
+            var c3d, foot;
+
+            // Update is called from two methods:
+            // Once in setToPosition and
+            // once in the subsequent board.update
+            if (this.element2D.draggable() &&
+                Geometry.distance(this._c2d, this.element2D.coords.usrCoords) !== 0) {
+
+                if (this.slide) {
+                    this.projectCoords2Surface();
+                } else {
+                    // Drag the point in its xy plane
+                    foot = [1, 0, 0, this.coords[3]];
+                    c3d = this.view.project2DTo3DPlane(this.element2D, [1, 0, 0, 1], foot);
+                    if (c3d[0] !== 0) {
+                        this.coords = this.view.project3DToCube(c3d);
+                    }
+                }
+            } else {
+                this.updateCoords();
+                // Update 2D point from its 3D view
+                this.element2D.coords.setCoordinates(Const.COORDS_BY_USER,
+                    this.view.project3DTo2D([1, this.X(), this.Y(), this.Z()])
+                );
+            }
+            this._c2d = this.element2D.coords.usrCoords.slice();
+
+            return this;
+        },
+
+        updateRenderer: function() {
+            this.needsUpdate = false;
+            return this;
+        },
+
+        projectCoords2Surface: function () {
+            var n = 2,		// # of variables
+                m = 2, 		// number of constraints
+                x = [0, 0],
+
+                // Various Cobyla constants, see Cobyla docs in Cobyja.js
+                rhobeg = 5.0,
+                rhoend = 1.0e-6,
+                iprint = 0,
+                maxfun = 200,
+
+                surface = this.slide,
+                that = this,
+                r, c3d, c2d,
+                _minFunc;
+
+            if (surface === null) {
+                return;
+            }
+
+            _minFunc = function (n, m, x, con) {
+                var c3d = [1, surface.X(x[0], x[1]), surface.Y(x[0], x[1]), surface.Z(x[0], x[1])],
+                    c2d = that.view.project3DTo2D(c3d);
+
+                con[0] = that.element2D.X() - c2d[1];
+                con[1] = that.element2D.Y() - c2d[2];
+
+                return con[0] * con[0] + con[1] * con[1];
             };
+            if (Type.exists(this._params)) {
+                x = this._params.slice();
+            }
+            r = Mat.Nlp.FindMinimum(_minFunc, n, m, x, rhobeg, rhoend, iprint, maxfun);
+
+            c3d = [1, surface.X(x[0], x[1]), surface.Y(x[0], x[1]), surface.Z(x[0], x[1])];
+            c2d = this.view.project3DTo2D(c3d);
+            this._params = x;
+            this.coords = c3d;
+            this.element2D.coords.setCoordinates(Const.COORDS_BY_USER, c2d);
+            this._c2d = c2d;
+        },
+
+        // Not yet working
+        __evt__update3D: function (oc) { }
+
+    });
+
+    /**
+     * @class This element is used to provide a constructor for a 3D Point.
+     * @pseudo
+     * @description A Point3D object is defined by 3 coordinates [x,y,z].
+     * <p>
+     * All numbers can also be provided as functions returning a number.
+     *
+     * @name Point3D
+     * @augments JXG.Point3D
+     * @constructor
+     * @throws {Exception} If the element cannot be constructed with the given parent
+     * objects an exception is thrown.
+     * @param {number,function_number,function_number,function} x,y,z The coordinates are given as x, y, z consisting of numbers of functions.
+     * @param {array,function} F Alternatively, the coordinates can be supplied as
+     *  <ul>
+     *   <li>array arr=[x,y,z] of length 3 consisting of numbers or
+     *   <li>function returning an array [x,y,z] of length 3 of numbers.
+     * </ul>
+     *
+     * @example
+     *    var bound = [-5, 5];
+     *    var view = board.create('view3d',
+     *        [[-6, -3], [8, 8],
+     *        [bound, bound, bound]],
+     *        {});
+     *    var p = view.create('point3d', [1, 2, 2], { name:'A', size: 5 });
+     *    var q = view.create('point3d', function() { return [p.X(), p.Y(), p.Z() - 3]; }, { name:'B', size: 5, fixed: true });
+     *
+     * </pre><div id="JXGb9ee8f9f-3d2b-4f73-8221-4f82c09933f1" class="jxgbox" style="width: 300px; height: 300px;"></div>
+     * <script type="text/javascript">
+     *     (function() {
+     *         var board = JXG.JSXGraph.initBoard('JXGb9ee8f9f-3d2b-4f73-8221-4f82c09933f1',
+     *             {boundingbox: [-8, 8, 8,-8], axis: false, showcopyright: false, shownavigation: false});
+     *         var bound = [-5, 5];
+     *         var view = board.create('view3d',
+     *             [[-6, -3], [8, 8],
+     *             [bound, bound, bound]],
+     *             {});
+     *         var p = view.create('point3d', [1, 2, 2], { name:'A', size: 5 });
+     *         var q = view.create('point3d', function() { return [p.X(), p.Y(), p.Z() - 3]; }, { name:'B', size: 5 });
+     *     })();
+     *
+     * </script><pre>
+     *
+     */
+    JXG.createPoint3D = function (board, parents, attributes) {
+        //   parents[0]: view
+        // followed by
+        //   parents[1]: function or array
+        // or
+        //   parents[1..3]: coordinates
+
+        var view = parents[0],
+            attr, F, slide,
+            c2d, el;
+
+        // If the last element of parents is a 3D object,
+        // the point is a glider on that element.
+        if (parents.length > 2 && Type.exists(parents[parents.length - 1].is3D)) {
+            slide = parents.pop();
+        } else {
+            slide = null;
+        }
+
+        if (parents.length === 2) {        // [view, array|fun] (Array [x, y, z] | function) returning [x, y, z]
+            F = parents[1];
+        } else if (parents.length === 4) { // [view, x, y, z], (3 numbers | functions)
+            F = parents.slice(1);
+        } else {
+            throw new Error("JSXGraph: Can't create point3d with parent types '" +
+                (typeof parents[0]) + "' and '" + (typeof parents[1]) + "'." +
+                "\nPossible parent types: [[x,y,z]], [x,y,z]");
+                //  "\nPossible parent types: [[x,y,z]], [x,y,z], [element,transformation]"); // TODO
+        }
+
+        attr = Type.copyAttributes(attributes, board.options, 'point3d');
+        el = new JXG.Point3D(view, F, slide, attr);
+        el.initCoords();
+
+        c2d = view.project3DTo2D(el.coords);
+
+        attr.name = el.name;
+        el.element2D = view.create('point', c2d, attr);
+        el.addChild(el.element2D);
+        el.inherits.push(el.element2D);
+        el.element2D.setParents(el);
+
+        el._c2d = el.element2D.coords.usrCoords.slice(); // Store a copy of the coordinates to detect dragging
+
+        return el;
+    };
+
+    JXG.registerElement('point3d', JXG.createPoint3D);
+
+});
+/*
+    Copyright 2008-2022
+        Matthias Ehmann,
+        Carsten Miller,
+        Andreas Walter,
+        Alfred Wassermann
+
+    This file is part of JSXGraph.
+
+    JSXGraph is free software dual licensed under the GNU LGPL or MIT License.
+
+    You can redistribute it and/or modify it under the terms of the
+
+      * GNU Lesser General Public License as published by
+        the Free Software Foundation, either version 3 of the License, or
+        (at your option) any later version
+      OR
+      * MIT License: https://github.com/jsxgraph/jsxgraph/blob/master/LICENSE.MIT
+
+    JSXGraph is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public License and
+    the MIT License along with JSXGraph. If not, see <http://www.gnu.org/licenses/>
+    and <http://opensource.org/licenses/MIT/>.
+ */
+/*global JXG:true, define: true*/
+
+define('3d/curve3d',['jxg', 'base/constants', 'utils/type'], function (JXG, Const, Type) {
+    "use strict";
+
+    /**
+     * Constructor for 3D curves.
+     * @class Creates a new 3D curve object. Do not use this constructor to create a 3D curve. Use {@link JXG.Board#create} with type {@link Curve3D} instead.
+     *
+     * @augments JXG.GeometryElement3D
+     * @augments JXG.GeometryElement
+     * @param {View3D} view
+     * @param {Function} F
+     * @param {Function} X
+     * @param {Function} Y
+     * @param {Function} Z
+     * @param {Array} range
+     * @param {Object} attributes
+     * @see JXG.Board#generateName
+     */
+     JXG.Curve3D = function (view, F, X, Y, Z, range, attributes) {
+        this.constructor(view.board, attributes, Const.OBJECT_TYPE_CURVE3D, Const.OBJECT_CLASS_3D);
+        this.constructor3D(view, 'surface3d');
+
+        this.id = this.view.board.setId(this, 'S3D');
+        this.board.finalizeAdding(this);
+
+        this.F = F;
+
+        /**
+         * Function which maps u to x; i.e. it defines the x-coordinate of the curve
+         * @function
+         * @returns Number
+         */
+        this.X = X;
+
+        /**
+         * Function which maps u to y; i.e. it defines the y-coordinate of the curve
+         * @function
+         * @returns Number
+         */
+        this.Y = Y;
+
+        /**
+         * Function which maps u to z; i.e. it defines the x-coordinate of the curve
+         * @function
+         * @returns Number
+         */
+        this.Z = Z;
+
+        if (this.F !== null) {
+            this.X = function(u) { return this.F(u)[0]; };
+            this.Y = function(u) { return this.F(u)[1]; };
+            this.Z = function(u) { return this.F(u)[2]; };
+        }
+
+        this.range = range;
+
+        this.methodMap = Type.deepCopy(this.methodMap, {
+            // TODO
+        });
+    };
+    JXG.Curve3D.prototype = new JXG.GeometryElement();
+    Type.copyPrototypeMethods(JXG.Curve3D, JXG.GeometryElement3D, 'constructor3D');
+
+    JXG.extend(JXG.Curve3D.prototype, /** @lends JXG.Curve3D.prototype */ {
+
+        updateDataArray: function () {
+            var steps = Type.evaluate(this.visProp.numberpointshigh),
+                r, s, e, delta,
+                c2d, u,
+                dataX, dataY,
+                p = [0, 0, 0];
+
+            dataX = [];
+            dataY = [];
+
+            if (Type.isArray(this.X)) {
+                steps = this.X.length;
+                for (u = 0; u < steps; u++) {
+                    p = [this.X[u], this.Y[u], this.Z[u]];
+                    c2d = this.view.project3DTo2D(p);
+                    dataX.push(c2d[1]);
+                    dataY.push(c2d[2]);
+                }
+            } else {
+                r = Type.evaluate(this.range);
+                s = r[0];
+                e = r[1];
+                delta = (e - s) / (steps - 1);
+                for (u = s; u <= e; u += delta) {
+                    if (this.F !== null){
+                        p = this.F(u);
+                    } else {
+                        p = [this.X(u), this.Y(u), this.Z(u)];
+                    }
+                    c2d = this.view.project3DTo2D(p);
+                    dataX.push(c2d[1]);
+                    dataY.push(c2d[2]);
+                }
+            }
+            return {'X': dataX, 'Y': dataY};
+        },
+
+        update: function () { return this; },
+
+        updateRenderer: function () {
+            this.needsUpdate = false;
+            return this;
+        }
+    });
+
+    /**
+     * @class This element creates a 3D parametric curves.
+     * @pseudo
+     * @description A 3D parametric curve is defined by a function
+     *    <i>F: R<sup>1</sup> &rarr; R<sup>3</sup></i>.
+     *
+     * @name Curve3D
+     * @augments Curve
+     * @constructor
+     * @type Object
+     * @throws {Exception} If the element cannot be constructed with the given parent objects an exception is thrown.
+     * @param {Function_Function_Function_Array,Function} F<sub>X</sub>,F<sub>Y</sub>,F<sub>Z</sub>,range
+     * F<sub>X</sub>(u), F<sub>Y</sub>(u), F<sub>Z</sub>(u) are functions returning a number, range is the array containing
+     * lower and upper bound for the range of the parameter u. range may also be a function returning an array of length two.
+     * @param {Function_Array,Function} F,range Alternatively: F<sub>[X,Y,Z]</sub>(u) a function returning an array [x,y,z] of
+     * numbers, range as above.
+     * @param {Array_Array_Array} X,Y,Z Three arrays containing the coordinate points which define the curve.
+     */
+    JXG.createCurve3D = function (board, parents, attributes) {
+        var view = parents[0],
+            F, X, Y, Z, range,
+            attr, el;
+
+        if (parents.length === 3) {
+            F = parents[1];
+            range = parents[2];
+            X = null;
+            Y = null;
+            Z = null;
+        } else {
+            X = parents[1];
+            Y = parents[2];
+            Z = parents[3];
+            range = parents[4];
+            F = null;
+        }
+        // TODO Throw error
+
+        attr = Type.copyAttributes(attributes, board.options, 'curve3d');
+        el = new JXG.Curve3D(view, F, X, Y, Z, range, attr);
+
+        el.element2D = board.create('curve', [[], []], attr);
+        el.element2D.updateDataArray = function() {
+            var ret = el.updateDataArray();
+            this.dataX = ret.X;
+            this.dataY = ret.Y;
+        };
+        el.addChild(el.element2D);
+        el.inherits.push(el.element2D);
+        el.element2D.setParents(el);
+
+        el.element2D.prepareUpdate().update();
+        if (!board.isSuspendedUpdate) {
+            el.element2D.updateVisibility().updateRenderer();
         }
 
         return el;
     };
-    JXG.registerElement('curve3d', ThreeD.createCurve);
+    JXG.registerElement('curve3d', JXG.createCurve3D);
 
 });
 /*
@@ -81479,9 +82959,124 @@ define('3d/curve3d',['jxg', 'utils/type', '3d/view3d'
  * Create linear spaces of dimension at least one,
  * i.e. lines and planes.
  */
-define('3d/linspace3d',['jxg', 'utils/type', 'math/math', 'math/geometry', '3d/view3d'
-], function (JXG, Type, Mat, Geometry, ThreeD) {
+define('3d/linspace3d',['jxg', 'base/constants', 'utils/type', 'math/math', 'math/geometry'
+], function (JXG, Const, Type, Mat, Geometry) {
     "use strict";
+
+    // -----------------------
+    //  Lines
+    // -----------------------
+
+    /**
+     * Constructor for 3D lines.
+     * @class Creates a new 3D line object. Do not use this constructor to create a 3D line. Use {@link JXG.Board#create} with type {@link Line3D} instead.
+     *
+     * @augments JXG.GeometryElement3D
+     * @augments JXG.GeometryElement
+     * @param {View3D} view
+     * @param {Point3D|Array} point
+     * @param {Array} direction
+     * @param {Array} range
+     * @param {Object} attributes
+     * @see JXG.Board#generateName
+     */
+    JXG.Line3D = function (view, point, direction, range, attributes) {
+        this.constructor(view.board, attributes, Const.OBJECT_TYPE_LINE3D, Const.OBJECT_CLASS_3D);
+        this.constructor3D(view, 'line3d');
+
+        this.id = this.view.board.setId(this, 'L3D');
+        this.board.finalizeAdding(this);
+
+        /**
+         * 3D point which - together with a direction - defines the line.
+         * @type JXG.Point3D
+         *
+         * @see JXG.Line3D#direction
+         */
+        this.point = point;
+
+        /**
+         * Direction which - together with a point - defines the line. Array of numbers or functions (of length 3) or function
+         * returning array of length 3.
+         *
+         * @type Array,Function
+         * @see JXG.Line3D#point
+         */
+        this.direction = direction;
+
+        /**
+         * Range [r1, r2] of the line. r1, r2 can be numbers or functions.
+         * The 3D line goes from (point + r1 * direction) to (point + r2 * direction)
+         * @type Array
+         */
+        this.range = range || [-Infinity, Infinity];
+
+        /**
+         * Starting point of the 3D line
+         * @type JXG.Point3D
+         * @private
+         */
+        this.point1 = null;
+
+        /**
+         * End point of the 3D line
+         * @type JXG.Point3D
+         * @private
+         */
+        this.point2 = null;
+
+        this.methodMap = Type.deepCopy(this.methodMap, {
+            // TODO
+        });
+    };
+    JXG.Line3D.prototype = new JXG.GeometryElement();
+    Type.copyPrototypeMethods(JXG.Line3D, JXG.GeometryElement3D, 'constructor3D');
+
+    JXG.extend(JXG.Line3D.prototype, /** @lends JXG.Line3D.prototype */ {
+
+        /**
+         * Determine one end point of a 3D line from point, direction and range.
+         *
+         * @param {Number|function} r
+         * @private
+         * @returns Array
+         */
+        getPointCoords: function (r) {
+            var p = [],
+                d = [],
+                i, r0;
+
+            p = [this.point.X(), this.point.Y(), this.point.Z()];
+
+            if (Type.isFunction(this.direction)) {
+                d = this.direction();
+            } else {
+                for (i = 1; i < 4; i++) {
+                    d.push(Type.evaluate(this.direction[i]));
+                }
+            }
+
+            r0 = Type.evaluate(r);
+            // TODO: test also in the finite case
+            if (Math.abs(r0) === Infinity) {
+                r = this.view.intersectionLineCube(p, d, r0);
+            }
+
+            return [
+                p[0] + d[0] * r0,
+                p[1] + d[1] * r0,
+                p[2] + d[2] * r0
+            ];
+        },
+
+        update: function () { return this; },
+
+        updateRenderer: function () {
+            this.needsUpdate = false;
+            return this;
+        }
+
+    });
 
     /**
      * @class This element is used to provide a constructor for a 3D line.
@@ -81498,168 +83093,288 @@ define('3d/linspace3d',['jxg', 'utils/type', 'math/math', 'math/geometry', '3d/v
      * All numbers can also be provided as functions returning a number.
      *
      * @name Line3D
-     * @augments JXG.Curve
+     * @augments JXG.GeometryElement3D
      * @constructor
-     * @type JXG.Curve
+     * @type JXG.Line3D
      * @throws {Exception} If the element cannot be constructed with the given parent
      * objects an exception is thrown.
-     * @param {JXG.Point_number,JXG.Point,JXG.Line,JXG.Circle} center,radius The center must be given as a {@link JXG.Point}, see {@link JXG.providePoints}, but the radius can be given
-     * as a number (which will create a circle with a fixed radius), another {@link JXG.Point}, a {@link JXG.Line} (the distance of start and end point of the
-     * line will determine the radius), or another {@link JXG.Circle}.
+     * @param {JXG.Point3D,array_JXG.Point3D,array} point1,point2 First and second defining point.
+     * @param {JXG.Point3D,array_array,function_array,function} point,direction,range Alternatively, point, direction and range can be supplied.
+     * <ul>
+     * <li> point: Point3D or array of length 3
+     * <li> direction: array of length 3 or function returning an array of numbers or function returning an array
+     * <li> range: array of length 2, elements can also be functions.
+     * </ul>
+     *
+     * @example
+     *     var bound = [-5, 5];
+     *     var view = board.create('view3d',
+     *         [[-6, -3], [8, 8],
+     *         [bound, bound, bound]],
+     *         {});
+     *     var p = view.create('point3d', [1, 2, 2], { name:'A', size: 5 });
+     *     // Lines through 2 points
+     *     var l1 = view.create('line3d', [[1, 3, 3], [-3, -3, -3]], {point1: {visible: true}, point2: {visible: true} });
+     *     var l2 = view.create('line3d', [p, l1.point1]);
+     *
+     *     // Line by point, direction, range
+     *     var l3 = view.create('line3d', [p, [0, 0, 1], [-2, 4]]);
+     *
+     * </pre><div id="JXG05f9baa4-6059-4502-8911-6a934f823b3d" class="jxgbox" style="width: 300px; height: 300px;"></div>
+     * <script type="text/javascript">
+     *     (function() {
+     *         var board = JXG.JSXGraph.initBoard('JXG05f9baa4-6059-4502-8911-6a934f823b3d',
+     *             {boundingbox: [-8, 8, 8,-8], axis: false, showcopyright: false, shownavigation: false});
+     *         var bound = [-5, 5];
+     *         var view = board.create('view3d',
+     *             [[-6, -3], [8, 8],
+     *             [bound, bound, bound]],
+     *             {});
+     *         var p = view.create('point3d', [1, 2, 2], { name:'A', size: 5 });
+     *         // Lines through 2 points
+     *         var l1 = view.create('line3d', [[1, 3, 3], [-3, -3, -3]], {name: 'll1', point1: {visible: true}, point2: {visible: true} });
+     *         var l2 = view.create('line3d', [p, l1.point1]);
+     *         // Line by point, direction, range
+     *         var l3 = view.create('line3d', [p, [0, 0, 1], [-2, 4]]);
+     *     })();
+     *
+     * </script><pre>
      *
      */
-    ThreeD.createLine = function (board, parents, attributes) {
+    JXG.createLine3D = function (board, parents, attributes) {
         var view = parents[0],
-            attr, D3, point, point1, point2,
+            attr, points,
+            point, direction, range,
+            point1, point2,
             el;
 
-        // Range
-        D3 = {
-            elType: 'line3d',
-            range: parents[3] || [-Infinity, Infinity]
-        };
+        attr = Type.copyAttributes(attributes, board.options, 'line3d');
 
-        // Point
-        if (Type.isPoint(parents[1])) {
-            point = parents[1];
-        } else {
-            point = view.create('point3d', parents[1], { visible: false, name: '', withLabel: false });
-        }
-        D3.point = point;
+        // In any case, parents[1] contains a point or point coordinates
+        point = Type.providePoints3D(view, [parents[1]], attributes, 'line3d', ['point'])[0];
 
-        // Direction
-        if (Type.isPoint(parents[2]) && Type.exists(parents[2].D3)) {
+        if (Type.isPoint3D(parents[2]) || (Type.isArray(parents[2]) && parents.length === 3)) {
             // Line defined by two points
 
             point1 = point;
-            point2 = parents[2];
-            D3.direction = function () {
+            point2 = Type.providePoints3D(view, [parents[2]], attributes, 'line3d', ['point2'])[0];
+            direction = function () {
                 return [
-                    point2.D3.X() - point.D3.X(),
-                    point2.D3.Y() - point.D3.Y(),
-                    point2.D3.Z() - point.D3.Z()
+                    point2.X() - point.X(),
+                    point2.Y() - point.Y(),
+                    point2.Z() - point.Z()
                 ];
             };
-            D3.range = [0, 1];
+            range = [0, 1];
+            el = new JXG.Line3D(view, point, direction, range, attr);
         } else {
             // Line defined by point, direction and range
 
             // Directions are handled as arrays of length 4,
             // i.e. with homogeneous coordinates.
             if (Type.isFunction(parents[2])) {
-                D3.direction = parents[2];
+                direction = parents[2];
             } else if (parents[2].length === 3) {
-                D3.direction = [1].concat(parents[2]);
+                direction = [1].concat(parents[2]);
             } else if (parents[2].length === 4) {
-                D3.direction = parents[2];
+                direction = parents[2];
             } else {
-                // Throw error
+                // TODO Throw error
             }
+            range = parents[3];
 
-            // Direction given as array
-            D3.getPointCoords = function (r) {
-                var p = [],
-                    d = [],
-                    i;
+            points = Type.providePoints3D(view, [[0, 0, 0], [0, 0, 0]], attributes, 'line3d', ['point1', 'point2']);
 
-                p.push(point.D3.X());
-                p.push(point.D3.Y());
-                p.push(point.D3.Z());
+            // Create a line3d with two dummy points
+            el = new JXG.Line3D(view, point, direction, range, attr);
 
-                if (Type.isFunction(D3.direction)) {
-                    d = D3.direction();
-                } else {
-                    for (i = 1; i < 4; i++) {
-                        d.push(Type.evaluate(D3.direction[i]));
-                    }
-                }
-                if (Math.abs(r) === Infinity) {
-                    r = view.intersectionLineCube(p, d, r);
-                }
-                return [
-                    p[0] + d[0] * r,
-                    p[1] + d[1] * r,
-                    p[2] + d[2] * r
-                ];
-
+            // Now set the real points which define the line
+            points[0].F = function () {
+                return el.getPointCoords(Type.evaluate(el.range[0]));
             };
+            points[0].prepareUpdate().update();
+            point1 = points[0];
 
-            attr = Type.copyAttributes(attributes, board.options, 'line3d', 'point1');
-            point1 = view.create('point3d', [
-                function () {
-                    return D3.getPointCoords(Type.evaluate(D3.range[0]));
-                }
-            ], attr);
-            attr = Type.copyAttributes(attributes, board.options, 'line3d', 'point2');
-            point2 = view.create('point3d', [
-                function () {
-                    return D3.getPointCoords(Type.evaluate(D3.range[1]));
-                }
-            ], attr);
+            points[1].F = function () {
+                return el.getPointCoords(Type.evaluate(el.range[1]));
+            };
+            points[1].prepareUpdate().update();
+            point2 = points[1];
         }
+        // TODO Throw error
 
-        attr = Type.copyAttributes(attributes, board.options, 'line3d');
-        el = view.create('segment', [point1, point2], attr);
-        el.point1 = point1;
-        el.point2 = point2;
+        el.element2D = view.create('segment', [point1.element2D, point2.element2D], attr);
+        el.addChild(el.element2D);
+        el.inherits.push(el.element2D);
+        el.element2D.setParents(el);
+
         point1.addChild(el);
         point2.addChild(el);
-        el.D3 = D3;
+        el.point1 = point1;
+        el.point2 = point2;
 
+        el.update();
+        el.element2D.prepareUpdate().update().updateRenderer();
         return el;
     };
-    JXG.registerElement('line3d', ThreeD.createLine);
+    JXG.registerElement('line3d', JXG.createLine3D);
 
-    ThreeD.createPlane = function (board, parents, attributes) {
-        var view = parents[0],
-            attr, D3,
-            point,
-            vec1 = parents[2],
-            vec2 = parents[3],
-            el, grid, update;
+    // -----------------------
+    //  Planes
+    // -----------------------
 
-        // D3: {
-        //    point,
-        //    vec1,
-        //    vec2,
-        //    poin1,
-        //    point2,
-        //    normal array of len 3
-        //    d
-        // }
-        D3 = {
-            elType: 'plane3d',
-            dir1: [],
-            dir2: [],
-            range1: parents[4],
-            range2: parents[5],
-            vec1: vec1,
-            vec2: vec2
-        };
+    /**
+     * Constructor for 3D planes.
+     * @class Creates a new 3D plane object. Do not use this constructor to create a 3D plane. Use {@link JXG.Board#create} with type {@link Plane3D} instead.
+     *
+     * @augments JXG.GeometryElement3D
+     * @augments JXG.GeometryElement
+     * @param {View3D} view
+     * @param {Point3D,Array} point
+     * @param {Array} direction1
+     * @param {Array} range1
+     * @param {Array} direction2
+     * @param {Array} range2
+     * @param {Object} attributes
+     * @see JXG.Board#generateName
+     */
+    JXG.Plane3D = function (view, point, dir1, range1, dir2, range2, attributes) {
+        this.constructor(view.board, attributes, Const.OBJECT_TYPE_PLANE3D, Const.OBJECT_CLASS_3D);
+        this.constructor3D(view, 'plane3d');
 
-        if (Type.isPoint(parents[1])) {
-            point = parents[1];
-        } else {
-            point = view.create('point3d', parents[1], { visible: false, name: '', withLabel: false });
-        }
-        D3.point = point;
+        this.id = this.view.board.setId(this, 'PL3D');
+        this.board.finalizeAdding(this);
 
-        D3.updateNormal = function () {
-            var i;
+        /**
+         * 3D point which - together with two direction vectors - defines the plane.
+         *
+         * @type JXG.Point3D
+         *
+         * @see JXG.3D#direction1
+         * @see JXG.3D#direction2
+         */
+        this.point = point;
+
+        /**
+         * Two linearly independent vectors - together with a point - define the plane. Each of these direction vectors is an
+         * array of numbers or functions (of length 3) or function returning array of length 3.
+         *
+         * @type Array,Function
+         *
+         * @see JXG.Plane3D#point
+         * @see JXG.Plane3D#direction2
+         */
+        this.direction1 = dir1;
+
+        /**
+         * Two linearly independent vectors - together with a point - define the plane. Each of these direction vectors is an
+         * array of numbers or functions (of length 3) or function returning array of length 3.
+         *
+         * @type Array,Function
+         * @see JXG.Plane3D#point
+         * @see JXG.Plane3D#direction1
+         */
+        this.direction2 = dir2;
+
+        /**
+         * Range [r1, r2] of {@link direction1}. The 3D line goes from (point + r1 * direction1) to (point + r2 * direction1)
+         * @type {Array}
+         */
+        this.range1 = range1 || [-Infinity, Infinity];
+
+        /**
+         * Range [r1, r2] of {@link direction2}. The 3D line goes from (point + r1 * direction2) to (point + r2 * direction2)
+         * @type {Array}
+         */
+        this.range2 = range2 || [-Infinity, Infinity];
+
+        /**
+         * Direction vector 1 of the 3D plane. Contains the evaluated coordinates from {@link direction1} and {@link range1}.
+         * @type Array
+         * @private
+         *
+         * @see updateNormal
+         */
+        this.vec1 =  [0, 0, 0];
+
+        /**
+         * Direction vector 2 of the 3D plane. Contains the evaluated coordinates from {@link direction2} and {@link range2}.
+         *
+         * @type Array
+         * @private
+         *
+         * @see updateNormal
+         */
+        this.vec2 =  [0, 0, 0];
+
+        this.grid = null;
+
+        /**
+         * Normal vector of the plane. Left hand side of the Hesse normal form.
+
+        * @type Array
+         * @private
+         *
+         * @see updateNormal
+         *
+         */
+        this.normal = [0, 0, 0];
+
+        /**
+         * Right hand side of the Hesse normal form.
+
+        * @type Array
+         * @private
+         *
+         * @see updateNormal
+         *
+         */
+        this.d = 0;
+
+        this.updateNormal();
+
+        this.methodMap = Type.deepCopy(this.methodMap, {
+            // TODO
+        });
+    };
+    JXG.Plane3D.prototype = new JXG.GeometryElement();
+    Type.copyPrototypeMethods(JXG.Plane3D, JXG.GeometryElement3D, 'constructor3D');
+
+    JXG.extend(JXG.Plane3D.prototype, /** @lends JXG.Plane3D.prototype */ {
+
+        /**
+         * Update the Hesse normal form of the plane, i.e. update normal vector and right hand side.
+         * Updates also {@link vec1} and {@link vec2}.
+         *
+         * @name updateNormal
+         * @function
+         * @returns {Object} Reference to the Plane3D object
+         * @private
+         * @example
+         *    plane.updateNormal();
+         *
+         */
+        updateNormal: function () {
+            var i, len;
             for (i = 0; i < 3; i++) {
-                D3.dir1[i] = Type.evaluate(D3.vec1[i]);
-                D3.dir2[i] = Type.evaluate(D3.vec2[i]);
+                this.vec1[i] = Type.evaluate(this.direction1[i]);
+                this.vec2[i] = Type.evaluate(this.direction2[i]);
             }
-            D3.normal = Mat.crossProduct(D3.dir1, D3.dir2);
-            D3.d = Mat.innerProduct(D3.point.D3.coords.slice(1), D3.normal, 3);
-        };
-        D3.updateNormal();
 
-        attr = Type.copyAttributes(attributes, board.options, 'plane3d');
-        el = board.create('curve', [[], []], attr);
-        el.D3 = D3;
+            this.normal = Mat.crossProduct(this.vec1, this.vec2);
 
-        el.updateDataArray = function () {
+            len = Mat.norm(this.normal);
+            if (Math.abs(len) > Mat.eps) {
+                for (i = 0; i < 3; i++) {
+                    this.normal[i] /= len;
+                }
+            }
+            this.d = Mat.innerProduct(this.point.coords.slice(1), this.normal, 3);
+
+            return this;
+        },
+
+        updateDataArray: function () {
             var s1, e1, s2, e2,
                 c2d, l1, l2,
                 planes = ['xPlaneRear', 'yPlaneRear', 'zPlaneRear'],
@@ -81667,17 +83382,19 @@ define('3d/linspace3d',['jxg', 'utils/type', 'math/math', 'math/geometry', '3d/v
                 v1 = [0, 0, 0],
                 v2 = [0, 0, 0],
                 q = [0, 0, 0],
-                p = [0, 0, 0], d, i, j, a, b, first, pos, pos_akt;
+                p = [0, 0, 0], d, i, j, a, b, first, pos, pos_akt,
+                view = this.view;
 
             this.dataX = [];
             this.dataY = [];
 
-            this.D3.updateNormal();
+            this.updateNormal();
 
             // Infinite plane
-            if (this.D3.elType !== 'axisplane3d' && view.defaultAxes &&
-                (!D3.range1 || !D3.range2)
-                ) {
+            if (this.elType !== 'axisplane3d' && view.defaultAxes &&
+                Type.evaluate(this.range1[0]) === -Infinity && Type.evaluate(this.range1[1]) === Infinity &&
+                Type.evaluate(this.range2[0]) === -Infinity && Type.evaluate(this.range2[1]) === Infinity
+            ) {
 
                 // Start with the rear plane.
                 // Determine the intersections with the view bbox3d
@@ -81703,10 +83420,10 @@ define('3d/linspace3d',['jxg', 'utils/type', 'math/math', 'math/geometry', '3d/v
 
                     // Point on the front plane of the bbox3d
                     p = [0, 0, 0];
-                    p[j] = view.D3.bbox3d[j][1];
+                    p[j] = view.bbox3D[j][1];
 
                     // d is the rhs of the Hesse normal form of the front plane.
-                    d = Mat.innerProduct(p, view.defaultAxes[planes[j]].D3.normal, 3);
+                    d = Mat.innerProduct(p, view.defaultAxes[planes[j]].normal, 3);
                     p = view.intersectionPlanePlane(this, view.defaultAxes[planes[j]], d);
 
                     if (p[0].length === 3 && p[1].length === 3) {
@@ -81757,21 +83474,22 @@ define('3d/linspace3d',['jxg', 'utils/type', 'math/math', 'math/geometry', '3d/v
                         break;
                     }
                 } while (pos !== first);
+
                 c2d = view.project3DTo2D(points[first][0]);
                 this.dataX.push(c2d[1]);
                 this.dataY.push(c2d[2]);
 
             } else {
                 // 3D bounded flat
-                s1 = Type.evaluate(this.D3.range1[0]);
-                e1 = Type.evaluate(this.D3.range1[1]);
-                s2 = Type.evaluate(this.D3.range2[0]);
-                e2 = Type.evaluate(this.D3.range2[1]);
+                s1 = Type.evaluate(this.range1[0]);
+                e1 = Type.evaluate(this.range1[1]);
+                s2 = Type.evaluate(this.range2[0]);
+                e2 = Type.evaluate(this.range2[1]);
 
-                q = this.D3.point.D3.coords.slice(1);
+                q = this.point.coords.slice(1);
 
-                v1 = this.D3.dir1.slice();
-                v2 = this.D3.dir2.slice();
+                v1 = this.vec1.slice();
+                v2 = this.vec2.slice();
                 l1 = Mat.norm(v1, 3);
                 l2 = Mat.norm(v2, 3);
                 for (i = 0; i < 3; i++) {
@@ -81797,27 +83515,70 @@ define('3d/linspace3d',['jxg', 'utils/type', 'math/math', 'math/geometry', '3d/v
                 this.dataX.push(this.dataX[0]);
                 this.dataY.push(this.dataY[0]);
             }
-        };
+            return { 'X': this.dataX, 'Y': this.dataY};
+        },
 
-        attr = Type.copyAttributes(attributes.mesh3d, board.options, 'mesh3d');
+        update: function () {
+            return this;
+        },
 
-        if (D3.range1 && D3.range2) {
-            grid = view.create('mesh3d', [point.D3.coords.slice(1), vec1, D3.range1, vec2, D3.range2], attr);
-            el.grid = grid;
-            el.inherits.push(grid);
+        updateRenderer: function () {
+            this.needsUpdate = false;
+            return this;
+        }
+    });
+
+    JXG.createPlane3D = function (board, parents, attributes) {
+        var view = parents[0],
+            attr,
+            point,
+            dir1 = parents[2],
+            dir2 = parents[3],
+            range1 = parents[4] || [-Infinity, Infinity],
+            range2 = parents[5] || [-Infinity, Infinity],
+            el, grid;
+
+
+        point = Type.providePoints3D(view, [parents[1]], attributes, 'plane3d', ['point'])[0];
+        if (point === false) {
+            // TODO Throw error
         }
 
-        // update = el.update;
-        // el.update = function () {
-        //     if (el.needsUpdate) {
-        //         update.apply(el);
-        //     }
-        //     return this;
-        // };
+        attr = Type.copyAttributes(attributes, board.options, 'plane3d');
+        el = new JXG.Plane3D(view, point, dir1, range1, dir2, range2, attr);
+        point.addChild(el);
+
+
+        el.element2D = view.create('curve', [[], []], attr);
+        el.element2D.updateDataArray = function() {
+            var ret = el.updateDataArray();
+            this.dataX = ret.X;
+            this.dataY = ret.Y;
+        };
+        el.addChild(el.element2D);
+        el.inherits.push(el.element2D);
+        el.element2D.setParents(el);
+
+
+        attr = Type.copyAttributes(attributes.mesh3d, board.options, 'mesh3d');
+        if (Math.abs(el.range1[0]) !== Infinity && Math.abs(el.range1[1]) !== Infinity &&
+            Math.abs(el.range2[0]) !== Infinity && Math.abs(el.range2[1]) !== Infinity
+        ) {
+            grid = view.create('mesh3d', [ function() { return point.coords; }, dir1, range1, dir2, range2 ], attr);
+            el.grid = grid;
+            el.addChild(grid);
+            el.inherits.push(grid);
+            grid.setParents(el);
+        }
+
+        el.element2D.prepareUpdate().update();
+        if (!board.isSuspendedUpdate) {
+            el.element2D.updateVisibility().updateRenderer();
+        }
 
         return el;
     };
-    JXG.registerElement('plane3d', ThreeD.createPlane);
+    JXG.registerElement('plane3d', JXG.createPlane3D);
 
 });
 /*
@@ -81850,210 +83611,100 @@ define('3d/linspace3d',['jxg', 'utils/type', 'math/math', 'math/geometry', '3d/v
  */
 /*global JXG:true, define: true*/
 
-define('3d/point3d',['jxg', 'base/constants', 'math/math', 'math/geometry', 'utils/type', '3d/view3d'
-], function (JXG, Const, Mat, Geometry, Type, ThreeD) {
+define('3d/surface3d',['jxg', 'base/constants', 'utils/type'], function (JXG, Const, Type) {
     "use strict";
 
     /**
-     * @class This element is used to provide a constructor for a 3D Point.
-     * @pseudo
-     * @description There are two possibilities to create a Line3D object.
-     * <p>
-     * First: the line in 3D is defined by two points in 3D (Point3D).
-     * The points can be either existing points or coordinate arrays of
-     * the form [x, y, z].
-     * <p>Second: the line in 3D is defined by a point (or coordinate array [x, y, z])
-     * a direction given as array [x, y, z] and an optional range
-     * given as array [s, e]. The default value for the range is [-Infinity, Infinity].
-     * <p>
-     * All numbers can also be provided as functions returning a number.
+     * Constructor for 3D surfaces.
+     * @class Creates a new 3D surface object. Do not use this constructor to create a 3D surface. Use {@link JXG.Board#create} with type {@link Surface3D} instead.
      *
-     * @name Point3D
-     * @augments JXG.Point
-     * @constructor
-     * @type JXG.Point
-     * @throws {Exception} If the element cannot be constructed with the given parent
-     * objects an exception is thrown.
-     * @param {JXG.Point_number,JXG.Point,JXG.Line,JXG.Circle} center,radius The center must be given as a {@link JXG.Point}, see {@link JXG.providePoints}, but the radius can be given
-     * as a number (which will create a circle with a fixed radius), another {@link JXG.Point}, a {@link JXG.Line} (the distance of start and end point of the
-     * line will determine the radius), or another {@link JXG.Circle}.
-     *
+     * @augments JXG.GeometryElement3D
+     * @augments JXG.GeometryElement
+     * @param {View3D} view
+     * @param {Function} F
+     * @param {Function} X
+     * @param {Function} Y
+     * @param {Function} Z
+     * @param {Array} range_u
+     * @param {Array} range_v
+     * @param {Object} attributes
+     * @see JXG.Board#generateName
      */
-     ThreeD.createPoint = function (board, parents, attributes) {
-        var view = parents[0],
-            attr, update2D, D3,
-            i, c2d,
-            el;
+     JXG.Surface3D = function (view, F, X, Y, Z, range_u, range_v, attributes) {
+        this.constructor(view.board, attributes, Const.OBJECT_TYPE_SURFACE3D, Const.OBJECT_CLASS_3D);
+        this.constructor3D(view, 'surface3d');
 
-        attr = Type.copyAttributes(attributes, board.options, 'point3d');
+        this.id = this.view.board.setId(this, 'S3D');
+        this.board.finalizeAdding(this);
 
-        D3 = {
-            elType: 'point3d',
-            coords: [1, 0, 0, 0],
-            X: function () { return this.coords[1]; },
-            Y: function () { return this.coords[2]; },
-            Z: function () { return this.coords[3]; }
-        };
-
-        // If the last element of partents is a 3D object, the point is a glider
-        // on that element.
-        if (parents.length > 2 && Type.exists(parents[parents.length - 1].D3)) {
-            D3.slide = parents.pop();
-        } else {
-            D3.slide = null;
-        }
-
-        if (parents.length === 2) {
-            D3.F = parents[1]; // (Array [x, y, z] | function) returning [x, y, z]
-            D3.coords = [1].concat(Type.evaluate(D3.F));
-        } else if (parents.length === 4) {
-            D3.F = parents.slice(1); // 3 numbers | functions
-            for (i = 0; i < 3; i++) {
-                D3.coords[i + 1] = Type.evaluate(D3.F[i]);
-            }
-        } else {
-            // Throw error
-        }
+        this.F = F;
 
         /**
-         * Update the 4D coords array
-         * @returns Object
+         * Function which maps (u, v) to x; i.e. it defines the x-coordinate of the surface
+         * @function
+         * @returns Number
          */
-        D3.updateCoords = function () {
-            var res, i;
-            if (Type.isFunction(this.F)) {
-                res = Type.evaluate(this.F);
-                this.coords = [1, res[0], res[1], res[2]];
-            } else {
-                this.coords[0] = 1;
-                for (i = 0; i < 3; i++) {
-                    if (Type.isFunction(this.F[i])) {
-                        this.coords[i + 1] = Type.evaluate(this.F[i]);
-                    }
-                }
-            }
-            return this;
-        };
-        D3.updateCoords();
+        this.X = X;
 
-        c2d = view.project3DTo2D(D3.coords);
-        el = board.create('point', c2d, attr);
-        el.D3 = D3;
-        el.D3.c2d = el.coords.usrCoords.slice(); // Copy of the coordinates to detect dragging
-        update2D = el.update;
+        /**
+         * Function which maps (u, v) to y; i.e. it defines the y-coordinate of the surface
+         * @function
+         * @returns Number
+         */
+        this.Y = Y;
 
-        if (el.D3.slide) {
-            el._minFunc = function (n, m, x, con) {
-                var surface = el.D3.slide.D3,
-                    c3d = [1, surface.X(x[0], x[1]), surface.Y(x[0], x[1]), surface.Z(x[0], x[1])],
-                    c2d = view.project3DTo2D(c3d);
+        /**
+         * Function which maps (u, v) to z; i.e. it defines the x-coordinate of the surface
+         * @function
+         * @returns Number
+         */
+        this.Z = Z;
 
-                con[0] = el.X() - c2d[1];
-                con[1] = el.Y() - c2d[2];
-
-                return con[0] * con[0] + con[1] * con[1];
-            };
-
-            el.projectCoords2Surface = function () {
-                var n = 2,		// # of variables
-                    m = 2, 		// number of constraints
-                    x = [0, 0],
-                    // Various Cobyla constants, see Cobyla docs in Cobyja.js
-                    rhobeg = 5.0,
-                    rhoend = 1.0e-6,
-                    iprint = 0,
-                    maxfun = 200,
-                    surface = this.D3.slide.D3,
-                    r, c3d, c2d;
-
-                if (Type.exists(this.D3.params)) {
-                    x = this.D3.params.slice();
-                }
-                r = Mat.Nlp.FindMinimum(this._minFunc, n, m, x, rhobeg, rhoend, iprint, maxfun);
-
-                c3d = [1, surface.X(x[0], x[1]), surface.Y(x[0], x[1]), surface.Z(x[0], x[1])];
-                c2d = view.project3DTo2D(c3d);
-                this.D3.params = x;
-                this.D3.coords = c3d;
-                this.coords.setCoordinates(Const.COORDS_BY_USER, c2d);
-                this.D3.c2d = c2d;
-            };
+        if (this.F !== null) {
+            this.X = function(u, v) { return this.F(u, v)[0]; };
+            this.Y = function(u, v) { return this.F(u, v)[1]; };
+            this.Z = function(u, v) { return this.F(u, v)[2]; };
         }
 
-        el.update = function (drag) {
-            var c3d, foot;
-            if (!this.needsUpdate) {
-                return this;
-            }
+        this.range_u = range_u;
+        this.range_v = range_v;
 
-            // Update is called in from two methods:
-            // Once in setToPositionDirectly and
-            // once in the subsequent board.update
-            if (this.draggable() &&
-                Geometry.distance(this.D3.c2d, this.coords.usrCoords) !== 0) {
-
-                if (this.D3.slide) {
-                    this.projectCoords2Surface();
-                } else {
-                    // Drag the point in its xy plane
-                    foot = [1, 0, 0, this.D3.coords[3]];
-                    c3d = view.project2DTo3DPlane(el, [1, 0, 0, 1], foot);
-                    if (c3d[0] !== 0) {
-                        this.D3.coords = view.project3DToCube(c3d);
-                    }
-                }
-            } else {
-                this.D3.updateCoords();
-                // Update 2D point from its 3D view
-                el.coords.setCoordinates(Const.COORDS_BY_USER,
-                    view.project3DTo2D([1, this.D3.X(), this.D3.Y(), this.D3.Z()])
-                );
-            }
-            this.D3.c2d = el.coords.usrCoords.slice();
-
-            update2D.apply(this, [drag]);
-            return this;
-        };
-
-        return el;
+        this.methodMap = Type.deepCopy(this.methodMap, {
+            // TODO
+        });
     };
-    JXG.registerElement('point3d', ThreeD.createPoint);
+    JXG.Surface3D.prototype = new JXG.GeometryElement();
+    Type.copyPrototypeMethods(JXG.Surface3D, JXG.GeometryElement3D, 'constructor3D');
 
-});
-/*
-    Copyright 2008-2022
-        Matthias Ehmann,
-        Carsten Miller,
-        Andreas Walter,
-        Alfred Wassermann
+    JXG.extend(JXG.Surface3D.prototype, /** @lends JXG.Surface3D.prototype */ {
 
-    This file is part of JSXGraph.
+        updateDataArray: function () {
+            var steps_u = Type.evaluate(this.visProp.stepsu),
+                steps_v = Type.evaluate(this.visProp.stepsv),
+                r_u = Type.evaluate(this.range_u),
+                r_v = Type.evaluate(this.range_v),
+                func, res;
 
-    JSXGraph is free software dual licensed under the GNU LGPL or MIT License.
+            if (this.F !== null) {
+                func = this.F;
+            } else {
+                func = [this.X, this.Y, this.Z];
+            }
+            res = this.view.getMesh(func,
+                r_u.concat([steps_u]),
+                r_v.concat([steps_v]));
 
-    You can redistribute it and/or modify it under the terms of the
+            return {'X': res[0], 'Y': res[1]};
+        },
 
-      * GNU Lesser General Public License as published by
-        the Free Software Foundation, either version 3 of the License, or
-        (at your option) any later version
-      OR
-      * MIT License: https://github.com/jsxgraph/jsxgraph/blob/master/LICENSE.MIT
+        update: function () { return this; },
 
-    JSXGraph is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details.
+        updateRenderer: function () {
+            this.needsUpdate = false;
+            return this;
+        }
 
-    You should have received a copy of the GNU Lesser General Public License and
-    the MIT License along with JSXGraph. If not, see <http://www.gnu.org/licenses/>
-    and <http://opensource.org/licenses/MIT/>.
- */
-/*global JXG:true, define: true*/
-
-define('3d/surface3d',['jxg', 'utils/type', '3d/view3d'
-], function (JXG, Type, ThreeD) {
-    "use strict";
-
+    });
 
     /**
      * @class This element creates a 3D parametric surface.
@@ -82066,10 +83717,13 @@ define('3d/surface3d',['jxg', 'utils/type', '3d/view3d'
      * @constructor
      * @type Object
      * @throws {Exception} If the element cannot be constructed with the given parent objects an exception is thrown.
-     * @param {Function_Function_Function_Array_Array} F<sub>X</sub>,F<sub>Y</sub>,F<sub>Z</sub>,rangeX,rangeY
-     * F<sub>X</sub>(u,v), F<sub>Y</sub>(u,v), F<sub>Z</sub>(u,v) are functions returning a number, rangeU is the array containing
-     * lower and upper bound for the range of parameter u, rangeV is the array containing
-     * lower and upper bound for the range of parameter v. rangeU and rangeV may also be functions returning an array of length two.
+     *
+     * @param {Function_Function_Function_Array,Function_Array,Function} F<sub>X</sub>,F<sub>Y</sub>,F<sub>Z</sub>,rangeU,rangeV F<sub>X</sub>(u,v), F<sub>Y</sub>(u,v), F<sub>Z</sub>(u,v)
+     * are functions returning a number, rangeU is the array containing lower and upper bound for the range of parameter u, rangeV is the array containing lower and
+     * upper bound for the range of parameter v. rangeU and rangeV may also be functions returning an array of length two.
+     * @param {Function_Array,Function_Array,Function} F,rangeU,rangeV Alternatively: F<sub>[X,Y,Z]</sub>(u,v) 
+     * a function returning an array [x,y,z] of numbers, rangeU and rangeV as above.
+     *
      * @example
      * var view = board.create('view3d',
      * 		        [[-6, -3], [8, 8],
@@ -82094,8 +83748,8 @@ define('3d/surface3d',['jxg', 'utils/type', '3d/view3d'
      *         var board = JXG.JSXGraph.initBoard('JXG52da0ecc-1ba9-4d41-850c-36e5120025a5',
      *             {boundingbox: [-8, 8, 8,-8], axis: false, showcopyright: false, shownavigation: false});
      *     var view = board.create('view3d',
-     *     		        [[-6, -3], [8, 8],
-     *     		        [[-5, 5], [-5, 5], [-5, 5]]]);
+     *            [[-6, -3], [8, 8],
+     *            [[-5, 5], [-5, 5], [-5, 5]]]);
      *
      *     // Sphere
      *     var c = view.create('parametricsurface3d', [
@@ -82109,48 +83763,54 @@ define('3d/surface3d',['jxg', 'utils/type', '3d/view3d'
      *         stepsU: 20,
      *         stepsV: 20
      *     });
-     *
      *     })();
      *
      * </script><pre>
      *
      */
-    ThreeD.createParametricSurface = function (board, parents, attributes) {
+    JXG.createParametricSurface3D = function (board, parents, attributes) {
         var view = parents[0],
-            attr,
-            X = parents[1],
-            Y = parents[2],
-            Z = parents[3],
-            range_u = parents[4],
-            range_v = parents[5],
-            D3, el;
+            F, X, Y, Z,
+            range_u, range_v,
+            attr, el;
 
-        D3 = {
-            elType: 'surface3d',
-            X: X,
-            Y: Y,
-            Z: Z,
-            range_u: range_u,
-            range_v: range_v
-        };
+        if (parents.length === 4) {
+            F = parents[1];
+            range_u = parents[2];
+            range_v = parents[3];
+            X = null;
+            Y = null;
+            Z = null;
+        } else {
+            X = parents[1];
+            Y = parents[2];
+            Z = parents[3];
+            range_u = parents[4];
+            range_v = parents[5];
+            F = null;
+        }
+
         attr = Type.copyAttributes(attributes, board.options, 'surface3d');
-        el = board.create('curve', [[], []], attr);
-        el.updateDataArray = function () {
-            var steps_u = Type.evaluate(this.visProp.stepsu),
-                steps_v = Type.evaluate(this.visProp.stepsv),
-                r_u = Type.evaluate(this.D3.range_u), // Type.evaluate(range_u),
-                r_v = Type.evaluate(this.D3.range_v), // Type.evaluate(range_v),
-                res = view.getMesh(this.D3.X, this.D3.Y, this.D3.Z,
-                    r_u.concat([steps_u]),
-                    r_v.concat([steps_v]));
-            this.dataX = res[0];
-            this.dataY = res[1];
+        el = new JXG.Surface3D(view, F, X, Y, Z, range_u, range_v, attr);
+
+        el.element2D = view.create('curve', [[], []], attr);
+        el.element2D.updateDataArray = function() {
+                var ret = el.updateDataArray();
+                this.dataX = ret.X;
+                this.dataY = ret.Y;
         };
-        el.D3 = D3;
+        el.addChild(el.element2D);
+        el.inherits.push(el.element2D);
+        el.element2D.setParents(el);
+
+        el.element2D.prepareUpdate().update();
+        if (!board.isSuspendedUpdate) {
+            el.element2D.updateVisibility().updateRenderer();
+        }
 
         return el;
     };
-    JXG.registerElement('parametricsurface3d', ThreeD.createParametricSurface);
+    JXG.registerElement('parametricsurface3d', JXG.createParametricSurface3D);
 
     /**
      * @class This element creates a 3D function graph.
@@ -82221,13 +83881,12 @@ define('3d/surface3d',['jxg', 'utils/type', '3d/view3d'
      *         stepsU: 70,
      *         stepsV: 70
      *     });
-     *
      *     })();
      *
      * </script><pre>
      *
      */
-    ThreeD.createFunctiongraph = function (board, parents, attributes) {
+    JXG.createFunctiongraph3D = function (board, parents, attributes) {
         var view = parents[0],
             X = function(u, v) { return u; },
             Y = function(u, v) { return v; },
@@ -82237,7 +83896,7 @@ define('3d/surface3d',['jxg', 'utils/type', '3d/view3d'
 
         return view.create('parametricsurface3d', [X, Y, Z, range_u, range_v], attributes);
     };
-    JXG.registerElement('functiongraph3d', ThreeD.createFunctiongraph);
+    JXG.registerElement('functiongraph3d', JXG.createFunctiongraph3D);
 
 });
 
@@ -82315,13 +83974,13 @@ define('../build/core.deps.js',[
     'element/button',
     'base/foreignobject',
     'options3d',
+    '3d/view3d',
+    '3d/element3d',
     '3d/box3d',
+    '3d/point3d',
     '3d/curve3d',
     '3d/linspace3d',
-    '3d/point3d',
-    '3d/surface3d',
-    '3d/threed',
-    '3d/view3d'
+    '3d/surface3d'
 ], function (JXG, Env) {
     "use strict";
 
