@@ -224,7 +224,7 @@ class stack_ast_filter_801_singleton_numeric implements stack_cas_astfilter_para
         // then we should have the $m and $p and even $sgn if needed.
         // If conversion toward floats is needed we can do that
         // and we can check the bad form 1e23*10^45.
-        if (stripos($m, 'e') !== false || !$this->power) {
+        if ($m && (stripos($m, 'e') !== false || !$this->power)) {
             // Could have a separate error.
             $node->position['invalid'] = true;
             $answernotes[] = 'Illegal_power';

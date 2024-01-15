@@ -81,6 +81,10 @@ abstract class stack_maths_output {
      * @return string the content ready to pass to format_text.
      */
     public function process_display_castext($text, $replacedollars, qtype_stack_renderer $renderer = null) {
+        if (!$text) {
+            return '';
+        }
+
         if ($replacedollars) {
             $text = $this->replace_dollars($text);
         }

@@ -171,7 +171,7 @@ abstract class stack_input {
      */
     protected function internal_contruct() {
         $options = $this->get_parameter('options');
-        if (trim($options) != '') {
+        if ($options && trim($options) != '') {
             $options = explode(',', $options);
             foreach ($options as $option) {
                 $option = strtolower(trim($option));
@@ -695,7 +695,7 @@ abstract class stack_input {
             $ta = '0';
             $trivialta = true;
             if (array_key_exists($index, $tvalidator)) {
-                if (!('' == trim($tvalidator[$index]))) {
+                if ($tvalidator[$index] && '' != trim($tvalidator[$index])) {
                     $ta = $tvalidator[$index];
                     $trivialta = false;
                 }
