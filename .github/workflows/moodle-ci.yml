@@ -16,7 +16,7 @@ jobs:
           - 5432:5432
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 3
       mariadb:
-        image: mariadb:10
+        image: mariadb:10.6
         env:
           MYSQL_USER: 'root'
           MYSQL_ALLOW_EMPTY_PASSWORD: "true"
@@ -32,29 +32,34 @@ jobs:
       matrix: # I don't know why, but mariadb is much slower, so mostly use pgsql.
         # We use a mix of SBCL and GCL, but mostly prefer SBCL as it is faster.
         include:
-          - php: '8.0'
+          - php: '8.2'
             moodle-branch: 'master'
             database: 'pgsql'
             maxima: 'SBCL'
-          - php: '7.4'
-            moodle-branch: 'MOODLE_401_STABLE'
+          - php: '8.1'
+            moodle-branch: 'MOODLE_402_STABLE'
+            database: 'pgsql'
+            maxima: 'GCL'
+          - php: '8.0'
+            moodle-branch: 'MOODLE_402_STABLE'
             database: 'pgsql'
             maxima: 'SBCL'
+          # Edinburgh is planning to run the setup below for 2023-24.
+          - php: '7.4'
+            moodle-branch: 'MOODLE_401_STABLE'
+            database: 'mariadb'
+            maxima: 'GCL'
           - php: '7.4'
             moodle-branch: 'MOODLE_400_STABLE'
             database: 'pgsql'
-            maxima: 'GCL'
+            maxima: 'SBCL'
           - php: '7.3'
             moodle-branch: 'MOODLE_311_STABLE'
             database: 'pgsql'
             maxima: 'SBCL'
-          - php: '7.3'
-            moodle-branch: 'MOODLE_310_STABLE'
-            database: 'pgsql'
-            maxima: 'SBCL'
           - php: '7.2'
             moodle-branch: 'MOODLE_39_STABLE'
-            database: 'mariadb'
+            database: 'pgsql'
             maxima: 'SBCL'
 
     steps:
@@ -71,7 +76,7 @@ jobs:
           echo "build_info();" | maxima
 
       - name: Check out repository code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           path: plugin
 
@@ -90,7 +95,7 @@ jobs:
           echo $(cd ci/vendor/bin; pwd) >> $GITHUB_PATH
           sudo locale-gen en_AU.UTF-8
           echo "NVM_DIR=$HOME/.nvm" >> $GITHUB_ENV
- 
+
       - name: Install moodle-plugin-ci
         run: |
           moodle-plugin-ci add-plugin maths/moodle-qbehaviour_dfexplicitvaildate
@@ -112,10 +117,10 @@ jobs:
           moodle-plugin-ci add-config 'define("QTYPE_STACK_TEST_CONFIG_CASDEBUGGING",        "0");'
 
           #cat ${{ github.workspace }}/moodle/config.php
- 
+
           cp ${{ github.workspace }}/moodledata/phpu_moodledata/stack/maxima_opt_auto ${{ github.workspace }}/maxima_opt_auto
           # Try a command on the command line.
-          # echo "1+1; quit();" | timeout --kill-after=10s 10s ${{ github.workspace }}/maxima_opt_auto -eval '(cl-user::run)' 
+          # echo "1+1; quit();" | timeout --kill-after=100s 100s ${{ github.workspace }}/maxima_opt_auto -eval '(cl-user::run)'
 
 
         env:
@@ -159,7 +164,7 @@ jobs:
         run: moodle-plugin-ci mustache
 
       - name: Grunt
-        if: ${{ matrix.moodle-branch == 'MOODLE_311_STABLE' }}
+        if: ${{ matrix.moodle-branch == 'MOODLE_401_STABLE' }}
         run: moodle-plugin-ci grunt
 
       - name: PHPUnit tests
