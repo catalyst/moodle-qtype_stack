@@ -165,7 +165,9 @@ foreach ($samplearguments as $argument) {
             $string       = "\[{@second(S1)@}\]";
             $ct = castext2_evaluatable::make_from_source($string, 'equivdemo');
             $session->add_statement($ct);
-            $session->instantiate();
+            if ($session->get_valid()) {
+                $session->instantiate();
+            }
             $start = microtime(true);
             $displaytext  = $ct->get_rendered();
             $took = (microtime(true) - $start);
@@ -194,6 +196,8 @@ foreach ($samplearguments as $argument) {
             if ($ct->get_errors() != '') {
                 $errs = html_writer::tag('span', $ct->get_errors(), array('class' => 'stacksyntaxexamplehighlight'));
                 $errs .= $session->get_debuginfo();
+            } else if (!$session->get_valid()) {
+                $errs = html_writer::tag('span', $session->get_errors(true), array('class' => 'stacksyntaxexamplehighlight'));
             }
             $debuginfo = $session->get_debuginfo();
 
@@ -217,13 +221,13 @@ foreach ($samplearguments as $argument) {
                 echo html_writer::tag('h3', $cskey . ": ". $title).
                     html_writer::tag('p', $argument['narrative']);
                 if (!$debug && $verbose) {
-                    echo html_writer::tag('pre', htmlspecialchars($argument['casstring'])).
+                    echo html_writer::tag('pre', htmlspecialchars($argument['casstring'], ENT_COMPAT)).
                     html_writer::tag('p', $errs);
                 }
                 echo html_writer::tag('p', stack_ouput_castext($displaytext));
                 if ($debug) {
-                    echo html_writer::tag('pre', $cskey . ": ". htmlspecialchars($cs1->get_inputform()) .
-                            ";\nDL:" . htmlspecialchars($argument['debuglist']) . ";").
+                    echo html_writer::tag('pre', $cskey . ": ". htmlspecialchars($cs1->get_inputform(), ENT_COMPAT) .
+                        ";\nDL:" . htmlspecialchars($argument['debuglist'], ENT_COMPAT) . ";").
                         html_writer::tag('p', $errs);
                 }
                 echo "\n<hr/>\n\n\n";

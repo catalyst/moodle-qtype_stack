@@ -126,12 +126,14 @@ class stack_ast_container_silent implements cas_evaluatable {
 
     public static function make_from_student_source(string $raw, string $context,
             stack_cas_security $securitymodel, array $filterstoapply = array(),
-            array $filteroptions = array(), string $grammar = 'Root') {
+            array $filteroptions = array(), string $grammar = 'Root', string $decimals = '.') {
 
         $errors = array();
         $answernotes = array();
         $parseroptions = array('startRule' => $grammar,
-                               'letToken' => stack_string('equiv_LET'));
+                               'letToken' => stack_string('equiv_LET'),
+                               'decimals' => $decimals
+        );
 
         // Force the security filter to use 's'.
         if (isset($filteroptions['998_security'])) {
@@ -313,10 +315,21 @@ class stack_ast_container_silent implements cas_evaluatable {
     }
 
     // This returns the fully filtered AST as it should be inputted were it inputted perfectly.
-    public function get_inputform(bool $keyless = false, $nounify = null, $nontuples = false): string {
+    public function get_inputform(bool $keyless = false, $nounify = null, $nontuples = false,
+            $decimals = '.'): string {
         if (!($nounify === null || is_int($nounify))) {
             throw new stack_exception('stack_ast_container: nounify must be null or an integer.');
         }
+        if (!($decimals === '.' || $decimals === ',')) {
+            throw new stack_exception('stack_ast_container: decimal option must be "." or ",".');
+        }
+        $decimal = '.';
+        $listsep = ',';
+        if ($decimals == ',') {
+            $decimal = ',';
+            $listsep = ';';
+        }
+
         $params = array('inputform' => true,
                 'qmchar' => true,
                 'pmchar' => 0,
@@ -324,7 +337,9 @@ class stack_ast_container_silent implements cas_evaluatable {
                 'keyless' => $keyless,
                 'dealias' => false, // This is needed to stop pi->%pi etc.
                 'nounify' => $nounify,
-                'nontuples' => $nontuples
+                'nontuples' => $nontuples,
+                'decimal' => $decimal,
+                'listsep' => $listsep
                 );
         return $this->ast_to_string($this->ast, $params);
     }
@@ -937,7 +952,12 @@ class stack_ast_container_silent implements cas_evaluatable {
                 $decimalplaces++;
             }
             if (strtolower($c) == 'e') {
-                $scientificnotation = true;
+                if (($meaningfulldigits + $leadingzeros + $indefinitezeros) > 0) {
+                    $scientificnotation = true;
+                } else {
+                    // If it is an `e` that exists before some numbers skip it.
+                    continue;
+                }
             }
             if ($c == '0') {
                 if ($meaningfulldigits == 0) {
@@ -962,7 +982,8 @@ class stack_ast_container_silent implements cas_evaluatable {
             } else if (ctype_digit($c)) {
                 $meaningfulldigits += $indefinitezeros + 1;
                 $indefinitezeros = 0;
-            } else {
+            } else if ($meaningfulldigits + $leadingzeros + $indefinitezeros > 0) {
+                // If we have seen any digits, before seeing something unexpected, we stop.
                 break;
             }
         }
