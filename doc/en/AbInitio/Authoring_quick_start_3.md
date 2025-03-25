@@ -1,6 +1,6 @@
 # Authoring quick start 3: improving feedback
 
-[1 - First question](Authoring_quick_start_1.md) | [2 - Question variables](Authoring_quick_start_2.md) | 3 - Feedback | [4 - Randomisation](Authoring_quick_start_4.md) | [5 - Question tests](Authoring_quick_start_5.md) | [6 - Multipart questions](Authoring_quick_start_6.md) | [7 - Simplification](Authoring_quick_start_7.md) | [8 - Quizzes](Authoring_quick_start_8.md)
+1 - [First question](Authoring_quick_start_1.md) | [2 - Question variables](Authoring_quick_start_2.md) | 3 - Feedback | [4 - Randomisation](Authoring_quick_start_4.md) | [5 - Question tests](Authoring_quick_start_5.md) | [6 - question library](Authoring_quick_start_6.md) | [7 - Multipart questions](Authoring_quick_start_7.md) | [8 - Simplification](Authoring_quick_start_8.md) | [9 - Quizzes](Authoring_quick_start_9.md)
 
 
 
@@ -15,7 +15,7 @@ Try previewing this question and typing in  `-1*(x-1)^(-3)+c`. The system should
 
 ## Answer test: Int
 
-We will need to edit the potential response tree to use a better [answer test](/Authoring/Answer_Tests/Calculus.md). Return to the page "Editing a STACK question". Find your potential response tree settings, click on the drop-down menu where we selected `AlgEquiv` and select `Int` from the list. Type `x` (the variable) into the Test options setting. Now press the `[Save changes and continue editing]` button and once more click the preview button.  We have just selected a special [answer test](/Authoring/Answer_Tests/Calculus.md) for dealing with integration questions.
+We will need to edit the potential response tree to use a better [answer test](../Authoring/Answer_Tests/Calculus.md). Return to the page "Editing a STACK question". Find your potential response tree settings, click on the drop-down menu where we selected `AlgEquiv` and select `Int` from the list. Type `x` (the variable) into the Test options setting. Now press the `[Save changes and continue editing]` button and once more click the preview button.  We have just selected a special [answer test](../Authoring/Answer_Tests/Calculus.md) for dealing with integration questions.
 
 The _Int_ answer test will accept any variable name for the constant of integration. For example, try typing in  `-(x-1)^(-3)+k`. The system should accept this as correct.  It will also give standard feedback if the student forgets a constant of integration or accidentally differentiates instead.  To try this, type `-12*(x-1)^(-5)`.  If you don't want students to see the automatic feedback, select the _Quiet_ option in the potential response node.
 
@@ -36,9 +36,9 @@ Next, a teacher needs to ask _"What might a student do incorrectly, and what wil
 
 For each mistake we think students might make, we can create an answer test. For example, we might expect students to leave their answer in expanded form. This would of course still be a correct answer, but we want to guide students away from unnecessarily expanding their answer. Let us create another node that tests if the student left their final answer in a factored form. We do this by adding another potential response node. 
 
-![Adding a new node](../../content/add_new_node.png)
+![STACK question potential response tree with 'Add another node' button below, centre left](../../content/addnewnode.png)
 
-Go to the potential response tree and click `[Add another node]` . Then under Node 1's  `True` branch change `Next` to `Node 2`. If we enter Node 2, we know the student has the correct answer and just need to establish if it is factored or not. To establish this we need to use the [FacForm answer test](/Authoring/Answer_Tests/index.md). This tests both that SAns and TAns are equivalent, and that SAns is factored. In this case we already know that the student's answer is equivalent to the teacher's answer (using *Int*'s better tailored algorithm). Hence we can just test the student's answer against itself.
+Go to the potential response tree and click `[Add another node]` . Then under Node 1's  `True` branch change `Next` to `Node 2`. If we enter Node 2, we know the student has the correct answer and just need to establish if it is factored or not. To establish this we need to use the [FacForm answer test](../Authoring/Answer_Tests/index.md). This tests both that SAns and TAns are equivalent, and that SAns is factored. In this case we already know that the student's answer is equivalent to the teacher's answer (using *Int*'s better tailored algorithm). Hence we can just test the student's answer against itself.
 
 Update the form so that Node 2 has
 
@@ -59,7 +59,7 @@ FacForm gives automatic feedback, but if you want to write your own you can set 
 Your answer is not factored. Well done for getting the correct answer, but remember that there is no need to expand out the brackets.
 ```
 
-You can continue to expand your potential response tree, checking for as many common mistakes as you would like to. See the [documentation](/Authoring/Answer_Tests/index.md) for information on more answer tests.
+You can continue to expand your potential response tree, checking for as many common mistakes as you would like to. See the [documentation](../Authoring/Answer_Tests/index.md) for information on more answer tests.
 
 ## Adding general feedback
 
