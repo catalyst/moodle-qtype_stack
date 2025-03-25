@@ -1,6 +1,6 @@
 # Differential Equations
 
-This page provides examples of how to represent and manipulate ordinary differential equations (ODEs) in [Maxima](../CAS/Maxima.md) when writing STACK questions.
+This page provides examples of how to represent and manipulate ordinary differential equations (ODEs) in [Maxima](../CAS/Maxima_background.md) when writing STACK questions.
 
 ## Representing ODEs
 
@@ -66,6 +66,17 @@ This can be solved with Maxima's `ode2` command and initial conditions specified
 Further examples and documentation are given in the [Maxima manual](http://maxima.sourceforge.net/docs/manual/en/maxima_22.html#SEC81)
 
 Note that by default STACK changes the value of Maxima's `logabs` variable.  This changes the way \(1/x\) is integrated.  If you want the default behaviour of Maxima you will need to restore `logabs:false` in the question variables.
+
+### Laplace Transforms ###
+
+Constant coefficient ODEs can also be manipulated in STACK using Laplace Transforms. An example of a second-order constant coefficient differential equation is given below with initial conditions set and the result of the Laplace Transform is stored.
+
+    ode: 5*'diff(x(t),t,2)-4*'diff(x(t),t)+7*x(t)=0;
+    sol: solve(laplace(ode,t,s), 'laplace(x(t), t, s));
+    sol: rhs(sol[1]);
+    sol: subst([x(0)=-1,diff(x(t), t)=0],sol);
+
+The `laplace` command will Laplace Transform the ode (more information in maxima docs [here](https://maxima.sourceforge.io/docs/manual/maxima_104.html#index-laplace)), but it will still be in terms of the Laplace Transform of `x(t)`, which is symbolic. The `solve` command then solves the algebraic equation for this symbolic Laplace Transformed function, and on the right-hand side of the equals sign, the desired answer is obtained using the `rhs` command. Lastly, the initial conditions need to be specified for `x(t)`. The Laplace Transform symbolically specifies values for `x(0)` and `x'(0)` and these can be replaced with the `subst` command as shown above.
 
 ## Randomly generating ODE problems ##
 
@@ -194,7 +205,7 @@ Generating these kinds of problems is relatively simple: we just need to create 
 Let us assume we have two real roots.  We might expect an answer \( Ae^{\lambda_1 t}+Be^{\lambda_2 t} \).
 We might have an unusual, but correct, answer such as  \( Ae^{\lambda_1 t}\left(1+Be^{\lambda_2 t}\right) \).  Hence, we can't just "look at the answer".
 
-A [sample question](../Authoring/Sample_questions.md) of this type is provided by STACK, in which we have the following question variables.
+Take question variables.
 
     sa1 : subst(y(t)=ans1,ode);
     sa2 : ev(sa1,nouns);
