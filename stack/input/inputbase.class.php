@@ -14,6 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Stack.  If not, see <http://www.gnu.org/licenses/>.
 
+/**
+ * The base class for inputs in Stack.
+ * @package    qtype_stack
+ * @copyright  2012 University of Birmingham
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later.
+ */
+
 defined('MOODLE_INTERNAL') || die();
 
 require_once(__DIR__ . '/../../locallib.php');
@@ -27,18 +34,24 @@ require_once(__DIR__ . '/inputstate.class.php');
  * Inputs are the controls that the teacher can put into the question
  * text to receive the student's response.
  *
- * @copyright  2012 University of Birmingham
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 abstract class stack_input {
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Constant
     const BLANK = '';
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Constant
     const VALID = 'valid';
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Constant
     const INVALID = 'invalid';
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Constant
     const SCORE = 'score';
 
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Constant
     const GRAMMAR_FIX_INSERT_STARS = 1;
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Constant
     const GRAMMAR_FIX_SPACES = 2;
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Constant
     const GRAMMAR_FIX_SINGLE_CHAR = 4;
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Constant
     const GRAMMAR_FIX_FUNCTIONS = 16;
 
     /**
@@ -60,6 +73,7 @@ abstract class stack_input {
     /**
      * Special variables in the question which should be exposed to the inputs and answer tests.
      */
+    // phpcs:ignore moodle.Commenting.VariableComment.Missing
     protected $contextsession = [];
 
     /**
@@ -103,6 +117,7 @@ abstract class stack_input {
     /**
      * The question level options for CAS sessions.
      */
+    // phpcs:ignore moodle.Commenting.VariableComment.Missing
     protected $options;
 
     /**
@@ -464,7 +479,7 @@ abstract class stack_input {
         // By default, do nothing.
     }
 
-    /*
+    /**
      * Set the contextsession values.
      */
     public function add_contextsession($contextsession) {
@@ -475,6 +490,7 @@ abstract class stack_input {
     }
 
     /**
+     * Returns whether a parameter is used in this input type.
      * @param string $param a settings parameter name.
      * @return bool whether this input type uses this parameter.
      */
@@ -603,7 +619,7 @@ abstract class stack_input {
         }
     }
 
-    /*
+    /**
      * Return the value of any extra options.
      */
     public function get_extra_options() {
@@ -625,6 +641,7 @@ abstract class stack_input {
     }
 
     /**
+     * Add description here.
      * @return string the teacher's answer, an example of what could be typed into
      * this input as part of a correct response to the question.
      */
@@ -633,6 +650,7 @@ abstract class stack_input {
     }
 
     /**
+     * Add description here.
      * @return string the teacher's answer, suitable for testcase construction.
      */
     public function get_teacher_answer_testcase() {
@@ -640,6 +658,7 @@ abstract class stack_input {
     }
 
     /**
+     * Add description here.
      * @return string the teacher's answer, displayed to the student in the general feedback.
      */
     public function get_teacher_answer_display($value, $display) {
@@ -681,7 +700,7 @@ abstract class stack_input {
      * @return stack_input_state represents the current state of the input.
      */
     public function validate_student_response($response, $options, $teacheranswer, stack_cas_security $basesecurity,
-            $ajaxinput = false, $castextprocessor = null, $questionvariables = null, $lang = null) {
+            $ajaxinput = false, $castextprocessor = null, $questionvariables = null, $lang = null, $seed = null) {
         if (!is_a($options, 'stack_options')) {
             throw new stack_exception('stack_input: validate_student_response: options not of class stack_options');
         }
@@ -827,7 +846,7 @@ abstract class stack_input {
                 $this->additional_session_variables($caslines, $teacheranswer));
         $sessionvars = array_merge($sessionvars, $additionalvars);
 
-        $session = new stack_cas_session2($sessionvars, $localoptions, 0);
+        $session = new stack_cas_session2($sessionvars, $localoptions, $seed);
 
         // If we are dealing with units in this question we apply units texput rules everywhere.
         if ($basesecurity->get_units()) {
@@ -862,11 +881,11 @@ abstract class stack_input {
         // we don't need to extract updated values from the instantiated $session explicitly.
         if ('units' == $validationmethod || 'unitsnegpow' == $validationmethod) {
             // The units type changes the display, so we really need the validation method display here.
-            list($valid, $errors, $display) = $this->validation_display($answer, $lvars, $caslines, $additionalvars,
-                $valid, $errors, $castextprocessor, $inertdisplayform, $ilines);
+            list($valid, $errors, $display, $notes) = $this->validation_display($answer, $lvars, $caslines, $additionalvars,
+                $valid, $errors, $castextprocessor, $inertdisplayform, $ilines, $notes);
         } else {
-            list($valid, $errors, $display) = $this->validation_display($answerd, $lvars, $caslines, $additionalvars,
-                $valid, $errors, $castextprocessor, $inertdisplayform, $ilines);
+            list($valid, $errors, $display, $notes) = $this->validation_display($answerd, $lvars, $caslines, $additionalvars,
+                $valid, $errors, $castextprocessor, $inertdisplayform, $ilines, $notes);
         }
 
         // Answers may not contain the ? character.  CAS-strings may, but answers may not.
@@ -927,7 +946,8 @@ abstract class stack_input {
         return $state;
     }
 
-    /* Allow different input types to change the CAS method used.
+    /**
+     * Allow different input types to change the CAS method used.
      * In particular, the units and equiv inputs do something different here.
      */
     protected function get_validation_method() {
@@ -938,7 +958,7 @@ abstract class stack_input {
         return $validationmethod;
     }
 
-    /*
+    /**
      * Sort out which filters to apply, based on options to the input.
      * Should be mostly independent of input type.
      */
@@ -974,6 +994,10 @@ abstract class stack_input {
         // Then ban the rest.
         $filterstoapply[] = '505_no_evaluation_groups';
 
+        if (get_class($this) === 'stack_parsons_input') {
+            $filterstoapply[] = '909_parsons_get_final_submission';
+        }
+
         // Remove scripts and other related things from string-values.
         $filterstoapply[] = '997_string_security';
 
@@ -1000,14 +1024,15 @@ abstract class stack_input {
             $filterstoapply[] = '990_no_fixing_spaces';
         }
 
+        // Assume single letter variable names = 16.
+        // This needs to come before we split names into single letters.
+        if ($grammarautofixes & self::GRAMMAR_FIX_FUNCTIONS) {
+            $filterstoapply[] = '407_split_unknown_functions';
+        }
+
         // Assume single letter variable names = 4.
         if ($grammarautofixes & self::GRAMMAR_FIX_SINGLE_CHAR) {
             $filterstoapply[] = '410_single_char_vars';
-        }
-
-        // Assume single letter variable names = 16.
-        if ($grammarautofixes & self::GRAMMAR_FIX_FUNCTIONS) {
-            $filterstoapply[] = '441_split_unknown_functions';
         }
 
         // Consolidate M_1 to M1 and so on.
@@ -1032,10 +1057,14 @@ abstract class stack_input {
      */
     protected function validate_contents($contents, $basesecurity, $localoptions) {
 
-        $errors = $this->extra_validation($contents);
-        $valid = !$errors;
-        $caslines = [];
         $errors = [];
+        $valid = true;
+        $vec = $this->extra_validation($contents);
+        if ($vec !== '') {
+            $valid = false;
+            $errors[] = $vec;
+        }
+        $caslines = [];
         $notes = [];
         $ilines = [];
 
@@ -1057,7 +1086,6 @@ abstract class stack_input {
                 $notes['too_long'] = true;
                 $val = '';
             }
-
             $answer = stack_ast_container::make_from_student_source($val, '', $secrules, $filterstoapply,
                 [], 'Root', $this->options->get_option('decimals'));
 
@@ -1120,6 +1148,7 @@ abstract class stack_input {
         return [];
     }
 
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Function
     private function extra_option_variables($questionvariables) {
 
         $additionalvars = [];
@@ -1184,11 +1213,11 @@ abstract class stack_input {
                     $additionalvars['statement-qv'] = new stack_secure_loader($questionvariables['statement-qv'], 'statement');
                 }
             }
-            if ($this->extraoptions['validator']) {
+            if ((array_key_exists('validator', $this->extraoptions) && $this->extraoptions['validator'])) {
                 $additionalvars['validator'] = stack_ast_container::make_from_teacher_source(
                     $this->extraoptions['validator'].'('.$this->name.')', '', new stack_cas_security(), []);
             }
-            if ($this->extraoptions['feedback']) {
+            if ((array_key_exists('feedback', $this->extraoptions) && $this->extraoptions['feedback'])) {
                 $additionalvars['feedback'] = stack_ast_container::make_from_teacher_source(
                     $this->extraoptions['feedback'].'('.$this->name.')', '', new stack_cas_security(), []);
             }
@@ -1207,7 +1236,7 @@ abstract class stack_input {
      *      string if the input is valid - at least according to this test.
      */
     protected function validation_display($answer, $lvars, $caslines, $additionalvars, $valid, $errors,
-                $castextprocessor, $inertdisplayform, $ilines) {
+                $castextprocessor, $inertdisplayform, $ilines, $notes) {
 
         $display = stack_maxima_format_casstring(htmlentities($this->contents_to_maxima($this->rawcontents), ENT_COMPAT));
         if ($answer->is_correctly_evaluated()) {
@@ -1228,7 +1257,7 @@ abstract class stack_input {
 
         // Guard clause at this point.
         if (!$valid) {
-            return [$valid, $errors, $display];
+            return [$valid, $errors, $display, $notes];
         }
 
         // The "novars" option is only used by the numerical input type.
@@ -1380,9 +1409,10 @@ abstract class stack_input {
             }
         }
 
-        return [$valid, $errors, $display];
+        return [$valid, $errors, $display, $notes];
     }
 
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Function
     public function requires_validation() {
         return $this->get_parameter('mustVerify', true);
     }
@@ -1393,12 +1423,14 @@ abstract class stack_input {
      * @param string student's current answer to insert into the xhtml.
      * @param string $fieldname the field name to use in the HTML for this input.
      * @param bool $readonly whether the control should be displayed read-only.
-     * @param array $tavalue the value of the teacher's answer for this input.
+     * ISS1436 - As far as I can tell, only equiv input is using $tavalue
+     * and that's expecting a string not an array.
+     * @param string $tavalue the value of the teacher's answer for this input.
      * @return string HTML for this input.
      */
     abstract public function render(stack_input_state $state, $fieldname, $readonly, $tavalue);
 
-    /*
+    /**
      * Render any error messages.
      */
     protected function render_error($error) {
@@ -1484,7 +1516,8 @@ abstract class stack_input {
         return $feedback;
     }
 
-    /* Allows individual input types to change the way the list of variables is tagged.
+    /**
+     * Allows individual input types to change the way the list of variables is tagged.
      * Used by the units input type.
      */
     protected function tag_listofvariables($vars) {
@@ -1644,7 +1677,7 @@ abstract class stack_input {
         return [$this->name => $in];
     }
 
-    /*
+    /**
      * Return the value of any errors.
      */
     public function get_errors() {
@@ -1660,12 +1693,24 @@ abstract class stack_input {
         return array_keys($errors);
     }
 
-    /*
+    /**
      * Provide a summary of the student's response for the Moodle reporting.
      * Notes do something different here.
      */
     public function summarise_response($name, $state, $response) {
         return $name . ': ' . $this->contents_to_maxima($state->contents) . ' [' . $state->status . ']';
+    }
+
+
+    /**
+     * Provide a summary of the student's response for download as a JSON object.
+     */
+    public function summarise_response_json($name, $state, $response) {
+        $sum = [];
+        $sum['status'] = $state->status;
+        $sum['note']   = $state->note;
+        $sum['value']  = $this->contents_to_maxima($state->contents);
+        return $sum;
     }
 
     /**
@@ -1677,7 +1722,7 @@ abstract class stack_input {
     /**
      * Returns the solution in the format used by the api
      * @param $tavalue
-     * @return array
+     * @return array|null
      */
     public function get_api_solution($tavalue) {
         return ['' => $tavalue];
@@ -1686,9 +1731,10 @@ abstract class stack_input {
     /**
      * Returns the rendering of the solution
      * @param $tadisplay
+     * @param $ta
      * @return mixed
      */
-    public function get_api_solution_render($tadisplay) {
+    public function get_api_solution_render($tadisplay, $ta) {
         return $tadisplay;
     }
 }

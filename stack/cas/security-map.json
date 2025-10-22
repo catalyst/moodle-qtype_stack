@@ -120,10 +120,10 @@
       "variable": "?"
   },
   "%rnum": {
-      "variable": "?"
+      "variable": "t"
   },
   "%rnum_list": {
-      "variable": "?"
+      "variable": "t"
   },
   "%s": {
       "function": "?"
@@ -3807,7 +3807,8 @@
       "variable": "f"
   },
   "km": {
-      "function": "?"
+      "function": "s",
+      "variable": "s"
   },
   "kostka": {
       "function": "f"
@@ -4955,7 +4956,6 @@
       "logicnoun": "nounnot"
   },
   "nounnot": {
-      "operator": "s",
       "nounoperatorfor": "not",
       "operator": "s"
   },
@@ -4965,7 +4965,6 @@
       "logicnoun": "nounnot "
   },
   "nounnot ": {
-      "operator": "s",
       "nounoperatorfor": "not ",
       "operator": "s"
   },
@@ -4974,6 +4973,39 @@
   },
   "noun": {
       "property": "?"
+  },
+  "nounadd": {
+      "nounoperatorfor": "+",
+      "operator": "s",
+      "spacesurroundedop": true
+  },
+  "nounmul": {
+      "nounoperatorfor": "*",
+      "operator": "s",
+      "spacesurroundedop": true
+  },
+  "nounpow": {
+      "nounoperatorfor": "^",
+      "operator": "s",
+      "spacesurroundedop": true
+  },
+  "noundiv": {
+      "nounoperatorfor": "/",
+      "operator": "s",
+      "spacesurroundedop": true
+  },
+  "nouneq": {
+      "nounoperatorfor": "=",
+      "operator": "s",
+      "spacesurroundedop": true
+  },
+  "nounsub": {
+      "operator": "s",
+      "nounoperatorfor": "-"
+  },
+  "nounsub ": {
+      "operator": "s",
+      "nounoperatorfor": "-"
   },
   "nounand": {
       "nounoperatorfor": "and",
@@ -7307,6 +7339,10 @@
       "function": "t",
       "built-in": true
   },
+  "stack_matrix_col": {
+      "function": "?",
+      "contextvariable": "true"
+  },
   "stack_disp": {
       "function": "t",
       "built-in": true
@@ -7350,6 +7386,10 @@
       "constant": "t"
   },
   "stack_unit_si_declare": {
+      "function": "s",
+      "contextvariable": "true"
+  },
+  "stack_linear_algebra_declare": {
       "function": "s",
       "contextvariable": "true"
   },
@@ -7636,7 +7676,7 @@
       "property": "?"
   },
   "symmetricp": {
-      "function": "f"
+      "function": "s"
   },
   "system": {
       "function": "f",
@@ -7767,6 +7807,10 @@
   },
   "tex_display": {
       "function": "?"
+  },
+  "tex_plain_atoms": {
+      "variable": "t",
+      "contextvariable": "true"
   },
   "texput": {
       "function": "?",

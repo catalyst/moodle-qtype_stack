@@ -50,6 +50,8 @@ If you expect students to use scientific notation for numbers, e.g. `3e4` (which
 
 Please read the separate documentation on [numerical rounding](Numerical_rounding.md).
 
+We also have mechanisms for keeping track of the number of significant figures. See the documentation on `dispsf(ex,n)` for detail.
+
 ## Maxima and floats with trailing zeros ##
 
 For its internal representation, Maxima always truncates trailing zeros from a floating point number.  For example, the Maxima expression `0.01000` will be converted internally to `0.01`.  Actually this is a byproduct of the process of converting a decimal input to an internal binary float, and back again.  Similarly, when a number is a "float" data type, Maxima always prints at least one decimal digit to indicate the number is a float.  For example, the floating point representation of the number ten is \(10.0\).  This does _not_ indicate significant figures, rather it indicates data type.  In situations where the number of significant figures is crucial this is problematic.
@@ -87,18 +89,19 @@ To force all floating point numbers to decimal floating point numbers use
 
 You can also force all integers to be displayed as floating point decimals or in scientific notation using `stackintfmt` and the appropriate template.  This function calls the LISP `format` function, which is complex and more example are available [online](http://www.gigamonkeys.com/book/a-few-format-recipes.html) elsewhere.
 
-| Template    | Input       |  TeX Output      |  Description/notes
+| Template       | Input       |  TeX Output      |  Description/notes
 | ----------- | ----------- | ---------------- | ----------------------------------------------------------------------------------------------
-| `"~,4f"`    | `0.12349`   | \(0.1235\)       |  Output four decimal places: floating point.
-|             | `0.12345`   | \(0.1234\)       |  Note the rounding.
-|             | `0.12`      | \(0.1200\)       |
-| `"~,5e"`    | `100.34`    | \(1.00340e+2\)   |  Output five decimal places: scientific notation.
-| `"~:d"`     | `10000000`  | \(10,000,000\)   |  Separate decimal groups of three digits with commas.
-| `~r`        | `9`         | \(\text{nine}\)  |  Rhetoric.
-| `~:r`       | `9`         | \(\text{ninth}\) |  Ordinal rhetoric.
-| `~7r`       | `9`         | \(12\)           |  Base 7.
-| `~@r`       | `9`         | \(IX\)           |  Roman numerals.
-| `~:@r`      | `9`         | \(VIIII\)        |  Old style Roman numerals.
+| `"~,4f"`       | `0.12349`   | \(0.1235\)       |  Output four decimal places: floating point.
+|                | `0.12345`   | \(0.1234\)       |  Note the rounding.
+|                | `0.12`      | \(0.1200\)       |
+| `"~,5e"`       | `100.34`    | \(1.00340e+2\)   |  Output five decimal places: scientific notation.
+| `"~:d"`        | `10000000`  | \(10,000,000\)   |  Separate decimal groups of three digits with commas.
+| `"~,,\' ,:d"` | `10000000`  | \(10\ 000\ 000\)   |  Separate decimal groups of three digits with spaces.
+| `~r`           | `9`         | \(\text{nine}\)  |  Rhetoric.
+| `~:r`          | `9`         | \(\text{ninth}\) |  Ordinal rhetoric.
+| `~7r`          | `9`         | \(12\)           |  Base 7.
+| `~@r`          | `9`         | \(IX\)           |  Roman numerals.
+| `~:@r`         | `9`         | \(VIIII\)        |  Old style Roman numerals.
 
 There are many other options within the LISP format command. Please note with the rhetoric and Roman numerals that the numbers will be in LaTeX mathematics environments.
 
@@ -128,13 +131,15 @@ The following commands which are relevant to manipulation of numbers are defined
 | Command                         | Description
 | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | `significantfigures(x,n)`       | Truncate \(x\) to \(n\) significant figures (does perform rounding).
-| `decimalplaces(x,n)`            | Truncate \(x\) to \(n\) decimal places  (does perform rounding).
+| `decimalplaces(x,n)`            | Truncate \(x\) to \(n\) decimal places  (does perform rounding). See below.
 | `commonfaclist(l)`              | Returns the highest common factors of a list of numbers.
 | `list_expression_numbers(ex)`   | Create a list with all parts for which `numberp(ex)=true`.
 | `coeff_list(ex,v)`              | This function takes an expression \(ex\) and returns a list of coefficients of \(v\).
 | `coeff_list_nz(ex,v)`           | This function takes an expression \(ex\) and returns a list of nonzero coefficients of \(v\).
 | `numabsolutep(sa,ta,tol)`       | Is \(sa\) within \(tol\) of \(ta\)? I.e. \( |sa-ta|<tol \)
 | `numrelativep(sa,ta,tol)`       | Is \(sa\) within \(tol\times ta\) of \(ta\)? I.e. \( |sa-ta|<tol\times ta \).
+| `numrelativep(sa,ta,tol)`       | Is \(sa\) within \(tol\times ta\) of \(ta\)? I.e. \( |sa-ta|<tol\times ta \).
+| `numexactp(sa,ta)`              | This function checks if one number equals another, but only when the floating point number is _exact_.   E.g. if `ta=1/4` then it has an exact decimal \(0.25\).  Here the float will be converted to a rational and compared.  However if `ta=1/3` then this decimal does not terminate, and so floats in `sa` will not be converted.
 
 The following commands generate displayed forms of numbers.  These will not be manipulated further automatically, so you will need to use these at the last moment, e.g. only when generating the teacher's answer etc.
 
@@ -142,17 +147,30 @@ The following commands generate displayed forms of numbers.  These will not be m
 | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | `dispdp(x,n)`                   | Truncate \(x\) to \(n\) decimal places and display with trailing digits.  Note, this always prints as a float (or integer), and not in scientific notation.
 | `dispsf(x,n)`                   | Truncate \(x\) to \(n\) significant figures and display with trailing digits.  Note, this always prints as a float, and not in scientific notation.
-| `scientific_notation(x,n)`      | Write \(x\) in the form \(m10^e\).   Only works reliably with `simp:false` (e.g. try 9000).  The optional second argument applies `displaysci(m,n)` to the mantissa to control the display of trailing zeros.
 | `displaydp(x,n)`                | An inert internal function to record that \(x\) should be displayed to \(n\) decimal places with trailing digits.  This function does no rounding.
 | `displaysci(x,n,expo)`          | An inert internal function to record that \(x\) should be displayed to \(n\) decimal places with trailing digits, in scientific notation.  E.g. \(x\times 10^{expo}\).
-
+| `remove_numerical_inert(ex)`   | Removes the above inert forms from an expression `ex`.
+| `scientific_notation(x,n)`      | Write \(x\) in the form \(m10^e\).   Only works reliably with `simp:false` (e.g. try 9000).  The optional second argument applies `displaysci(m,n)` to the mantissa to control the display of trailing zeros.
 
 | Function                  | Predicate
 | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | `simp_numberp(ex)`          | Fixes `numberp(ex)` for `simp:false`.
+| `simp_integerp(ex)`          | Fixes `integerp(ex)` for `simp:false`.
+| `simp_floatnump(ex)`          | Fixes `floatnump(ex)` for `simp:false`.
 | `real_numberp(ex)`          | Determines if \(ex\) is a real number.  This includes surds and symbolic numbers such as \(\pi\).
 | `lowesttermsp(ex)`          | Is the rational expression in its lowest terms?
 | `anyfloatex(ex)`            | Decides if any floats are in the expression.
 | `scientific_notationp(ex)` | Determines if \(ex\) is written in the form \(a10^n\) where \(a\) is an integer or float, and \(n\) is an integer.
 
 Please note that these predicate functions need to be used with `simp:false`.  Some answer tests, including the default algebraic equivalence (`ATAlgEquiv`) always simplify their arguments.  Instead use a non-simplifying answer test such as `EqualComAss`.
+
+### Decimal places
+
+The functions `decimalplaces(x,n)` and `dispdp(x,n)` perform rounding.  See the separate notes on [numerical rounding](Numerical_rounding.md) for details.  There are some edge cases.
+
+* If `x` is not a real number (judged by `real_numberp`) then we return `ex` (without an error).
+* `n` must be an integer, otherwise we throw an error.
+* If `n` equals zero, then we round to the nearest integer with Maxima's `round` command.
+* `n` negative is possible, in which case we round. e.g. `decimalplaces(314.15,-2)` gives `300`.
+* `decimalplaces(x,n)` returns an integer if possible.  That is we don't return a float like `7.0` we return the integer `7` instead.
+* `dispdp(x,n)` returns an inert form intended to display trailing zeros (if any).  In this case `x` must be a real number, otherwise we throw an error.

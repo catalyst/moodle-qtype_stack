@@ -14,6 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Stateful.  If not, see <http://www.gnu.org/licenses/>.
 
+/**
+ * Add description here!
+ * @package    qtype_stack
+ * @copyright  2024 University of Edinburgh.
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later.
+ */
+
 defined('MOODLE_INTERNAL') || die();
 
 require_once(__DIR__ . '/../block.interface.php');
@@ -29,7 +36,9 @@ require_once(__DIR__ . '/stack_translate.specialblock.php');
 require_once(__DIR__ . '/demarkdown.block.php');
 require_once(__DIR__ . '/demoodle.block.php');
 
+// phpcs:ignore moodle.Commenting.MissingDocblock.Class
 class stack_cas_castext2_special_root extends stack_cas_castext2_block {
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Function
     public function compile($format, $options): ?MP_Node {
         $r = null;
 
@@ -38,6 +47,11 @@ class stack_cas_castext2_special_root extends stack_cas_castext2_block {
             $r = new MP_FunctionCall(new MP_Identifier('sconcat'), []);
         } else {
             $r = new MP_List([new MP_String('%root')]);
+        }
+
+        $interactive = $this->is_interactive();
+        if ($interactive) {
+            stack_cas_castext2_block::$isinteractive = true;
         }
 
         foreach ($this->children as $item) {
@@ -113,6 +127,7 @@ class stack_cas_castext2_special_root extends stack_cas_castext2_block {
         return $r;
     }
 
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Function
     public function is_flat(): bool {
         // Now then the problem here is that the flatness depends on the flatness of
         // the blocks contents. If they all generate strings then we are flat but if not...
@@ -123,6 +138,20 @@ class stack_cas_castext2_special_root extends stack_cas_castext2_block {
         }
 
         return $flat;
+    }
+
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Function
+    public function is_interactive(): bool {
+        $interactive = false;
+
+        foreach ($this->children as $child) {
+            if ($child->is_interactive()) {
+                $interactive = true;
+                break;
+            };
+        }
+
+        return $interactive;
     }
 
     /**
@@ -154,12 +183,14 @@ class stack_cas_castext2_special_root extends stack_cas_castext2_block {
         return $r;
     }
 
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Function
     public function validate_extract_attributes(): array {
         return [];
     }
 
     // Creates a block from a node.
     // TO-DO: pick another place for this function.
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Function
     public static function make(CTP_Node $node): stack_cas_castext2_block {
         if ($node instanceof CTP_IOBlock) {
             $r = new stack_cas_castext2_special_ioblock([], [], $node->

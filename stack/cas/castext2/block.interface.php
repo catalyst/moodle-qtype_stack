@@ -14,6 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Stateful.  If not, see <http://www.gnu.org/licenses/>.
 
+/**
+ * Add description here!
+ * @package    qtype_stack
+ * @copyright  2017 Matti Harjula.
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later.
+ */
+
 defined('MOODLE_INTERNAL') || die();
 
 require_once(__DIR__ . '/CTP_classes.php');
@@ -21,23 +28,36 @@ require_once(__DIR__ . '/processor.class.php');
 require_once(__DIR__ . '/castext2_placeholder_holder.class.php');
 require_once(__DIR__ . '/../../maximaparser/MP_classes.php');
 
+// phpcs:ignore moodle.Commenting.MissingDocblock.Class
 abstract class stack_cas_castext2_block {
 
     // In entry phase these are the params of the CTP_Node matching this block.
     // But in postprocess phase this will be NULL.
+    // phpcs:ignore moodle.Commenting.VariableComment.Missing
     public $params;
     // These are the blocks matching the children of the CTP block. NULL again in
     // postprocess phase.
+    // phpcs:ignore moodle.Commenting.VariableComment.Missing
     public $children;
     // We have no clue what this would be in postprocess phase.
+    // phpcs:ignore moodle.Commenting.VariableComment.Missing
     public $mathmode = false;
     // Position data from the parser.
+    // phpcs:ignore moodle.Commenting.VariableComment.Missing
     public $position = null;
     // Painter detected format. TO-DO: remove compile-function argument for this.
+    // phpcs:ignore moodle.Commenting.VariableComment.Missing
     public $paintformat = null;
     // Store any errors.
+    // phpcs:ignore moodle.Commenting.VariableComment.Missing
     public $err = [];
+    /**
+     * Keeps track of whether the current question has interactove elements.
+     * @var bool
+     */
+    public static $isinteractive = false;
 
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Function
     public function __construct(
         $params,
         $children = [],
@@ -77,6 +97,15 @@ abstract class stack_cas_castext2_block {
      */
     public function is_flat(): bool {
         return true;
+    }
+
+    /**
+     * Is this an interactive block?
+     * If true, we can't generate a static version.
+     * @return bool
+     */
+    public function is_interactive(): bool {
+        return false;
     }
 
     /**

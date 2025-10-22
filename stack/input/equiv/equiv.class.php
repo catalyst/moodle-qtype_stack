@@ -22,6 +22,7 @@ require_once(__DIR__ . '/../../utils.class.php');
  * This is an input that allows reasoning by equivalence.
  * Each line input becomes one element of a list.
  *
+ * @package    qtype_stack
  * @copyright  2015 Loughborough University
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
@@ -56,6 +57,7 @@ class stack_equiv_input extends stack_input {
         'checkvars' => 0,
     ];
 
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Function
     public function render(stack_input_state $state, $fieldname, $readonly, $tavalue) {
         // Note that at the moment, $this->boxHeight and $this->boxWidth are only
         // used as minimums. If the current input is bigger, the box is expanded.
@@ -131,6 +133,7 @@ class stack_equiv_input extends stack_input {
         return $output;
     }
 
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Function
     public function render_api_data($tavalue) {
         if ($this->errors) {
             throw new stack_exception("Error rendering input: " . implode(',', $this->errors));
@@ -162,6 +165,7 @@ class stack_equiv_input extends stack_input {
         return $data;
     }
 
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Function
     public function add_to_moodleform_testinput(MoodleQuickForm $mform) {
         $mform->addElement('text', $this->name, $this->name, ['size' => $this->parameters['boxWidth']]);
         $mform->setDefault($this->name, $this->parameters['syntaxHint']);
@@ -194,6 +198,7 @@ class stack_equiv_input extends stack_input {
         return $contents;
     }
 
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Function
     protected function caslines_to_answer($caslines, $secrules = false) {
         $vals = [];
         // We don't use full "inputform" here as we need to keep stacklet and stackeq as is.
@@ -346,7 +351,7 @@ class stack_equiv_input extends stack_input {
      *      string if the input is valid - at least according to this test.
      */
     protected function validation_display($answer, $lvars, $caslines, $additionalvars,
-                                            $valid, $errors, $castextprocessor, $inertdisplayform, $ilines) {
+                                            $valid, $errors, $castextprocessor, $inertdisplayform, $ilines, $notes) {
 
         if ($this->extraoptions['firstline']) {
             $foundfirstline = false;
@@ -406,11 +411,23 @@ class stack_equiv_input extends stack_input {
             }
         }
 
-        return [$valid, $errors, $display];
+        foreach ($additionalvars as $index => $cs) {
+            if ($cs->get_key() === 'argvalidation' && $cs->is_correctly_evaluated()) {
+                if ('false' === $cs->get_value()) {
+                    // Then the student has used mixed reasoning.
+                    $valid = false;
+                    $notes['equivmixedreasoning'] = true;
+                    $display .= html_writer::tag('p', stack_string('equivmixedreasoning'));
+                }
+            }
+        }
+
+        return [$valid, $errors, $display, $notes];
     }
 
 
-    /** This function creates additional session variables.
+    /**
+     * This function creates additional session variables.
      */
     protected function additional_session_variables($caslines, $teacheranswer) {
         $equivdebug = 'false';
@@ -426,6 +443,10 @@ class stack_equiv_input extends stack_input {
         $s = 'equiv'.$this->name.':disp_stack_eval_arg('.$this->name.', '.$showlogic.', '. $showdomain.
             ', '.$equivdebug.', '.$debuglist.')';
         $an = stack_ast_container::make_from_teacher_source($s);
+
+        // Check we have valid overall reasoning.
+        $d = 'argvalidation:stack_eval_arg_validationp('.$this->name.')';
+        $db = stack_ast_container::make_from_teacher_source($d);
 
         $calculus = 'false';
         if ($this->extraoptions['calculus']) {
@@ -454,13 +475,15 @@ class stack_equiv_input extends stack_input {
             $fl->get_valid();
         }
 
-        return ['calculus' => $ca, 'equivdisplay' => $an, 'equivfirstline' => $fl];
+        return ['calculus' => $ca, 'equivdisplay' => $an, 'equivfirstline' => $fl, 'argvalidation' => $db];
     }
 
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Function
     protected function get_validation_method() {
         return 'equiv';
     }
 
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Function
     private function comment_tag($index) {
         return 'EQUIVCOMMENT'.$index;
     }
@@ -506,6 +529,7 @@ class stack_equiv_input extends stack_input {
     }
 
     /**
+     * Add description here.
      * @return string the teacher's answer, displayed to the student in the general feedback.
      */
     public function get_teacher_answer_display($value, $display) {
@@ -573,13 +597,10 @@ class stack_equiv_input extends stack_input {
         return $feedback;
     }
 
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Function
     protected function ajax_to_response_array($in) {
         $in = explode('<br>', $in);
         $in = implode("\n", $in);
         return [$this->name => $in];
-    }
-
-    public function get_api_solution($tavalue) {
-        return ['' => $this->maxima_to_raw_input($tavalue)];
     }
 }

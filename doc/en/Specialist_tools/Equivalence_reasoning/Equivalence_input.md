@@ -4,22 +4,7 @@ This is reference documentation for the equivalence reasoning input.
 
 ##  What is reasoning by equivalence and this input type?
 
-Reasoning by equivalence is a particularly important activity in elementary algebra.  
-It is an iterative formal symbolic procedure where algebraic expressions, or terms within an expression, 
-are replaced by an equivalent until a "solved" form is reached.
-An example of solving a quadratic equation is shown below.
-\[\begin{array}{cc} \  & x^2-x=30 & \\
-\color{green}{\Leftrightarrow} & x^2-x-30=0 & \\
-\color{green}{\Leftrightarrow} & \left(x-6\right)\cdot \left(x+5\right)=0 \\
-\color{green}{\Leftrightarrow} & x-6=0\lor x+5=0 \\
-\color{green}{\Leftrightarrow} & x=6\lor x=-5
-\end{array}\]
-
-The point is that replacing an expression or a sub-expression in a problem by an equivalent expression provides a new problem having the same solutions.
-This input type enables us to capture and evaluate student's line-by-line reasoning, i.e. their steps in working, during this kind of activity.
-
-Reasoning by equivalence is very common in elementary mathematics.  It is either the entire task (such as when solving a quadratic)
-or it is an important part of a bigger problem.  E.g. proving the induction step is often achieved by reasoning by equivalence.  
+This input type enables us to capture and evaluate student's line-by-line reasoning.
 
 ## How do students use this input?
 
@@ -27,7 +12,7 @@ or it is an important part of a bigger problem.  E.g. proving the induction step
 
 In traditional practice students work line by line rewriting an equation until it is solved.  
 This input type is designed to capture this kind of working and evaluate it based on the assumption that each line should be equivalent to the previous one.  
-Instructions for students are [here](../../Students/Equivalence_reasoning.md).  Some common observations about this form of reasoning are
+We have [instructions for students](../../Students/Equivalence_reasoning.md).  Some common observations about this form of reasoning are
 
 1. Students often use no logical connectives between lines.
 2. Students ignore the natural domain of an expression, e.g. in \(\frac{1}{x}\) the value \(x=0\) is excluded from the domain of definition.
@@ -44,8 +29,6 @@ Note that students may not take square roots of both sides of an equation.  This
 
 But should students really use logical connectives?  Yes, I (CJS) believe they should but to require this from the input type now would be too big a step for students and their teachers. Students are already being expected to use connectives such as `and` and `or` correctly.  The input type uses these connectives and in the future options may be added to this input type which require students to be explicit about logical connectives, especially when we add support for implication in addition to equivalence.  As we gain confidence in teaching with equivalence reasoning, we will add more options to this input type.
 
-__If you have strong views on how this input type should behave, please contact the developers.__
-
 ## Validation and correctness
 
 STACK carefully separates out *validation* of a student's answer from the *correctness*.
@@ -55,6 +38,10 @@ which is tied to inputs, from the potential response trees which establish the m
 Each line of a student's answer must be a valid expression, just as with the algebraic input type.  
 However, sets, lists and matrices are not permitted in this input type.  
 The internal result is a *list* of expressions (equations or inequalities).
+
+### Validation symbols and their meaning
+
+Validation typically gives immediate feedback using symbols, which are documented in the [mathematics of equivalence reasoning](Equivalence_reasoning.md) page.
 
 ## Example use cases for this input type
 
@@ -81,6 +68,29 @@ If the student starts their line with an `=` sign, this is accepted.  Teachers c
 Teachers must explicitly use the `nounor` and `nounand` commands, not the `and` and `or` logic.  For more details see the section on [simplification](../../CAS/Simplification.md).  For example, a worked solution might be
 
     ta:[p=0,(v-n1)*(v-n2)=0,v-n1=0 nounor v-n2=0,v=n1 nounor v=n2]
+
+## Syntax hints
+
+The result of evaluating the syntax hint castext must be a list.  This will be re-interpreted by Maxima, and if you just pass in an expression strange behaviour may result.
+
+The castext may be used to fine-tune the syntax hint. In particular, if you want to remove `*`s from the first line, then this is one (rare) situation where it's best to work at the _display_ level, not at the Maxima expression level.  Normally, especially with PRTs, it's best to work at the maxima level to establish the mathematical meaning.  However, here we need to fine tune how an expression is displayed.  There are currently two options for creating a clean string representation of an expression.
+
+1. `sh:stack_disp(unary_minus_sort(p), "")` will provide the LaTeX output (fine-tuned by STACK).  The problems with using this format here, outside the LaTeX maths environment, are things like (i) use of `\left(...\right)`, use of `\frac{}{}` for division etc.
+2. `sh:sremove("*", string(unary_minus_sort(p)))` will provide the string output.  The problems with this format are things like (i) too many brackets, (ii) nounforms are not converted (`nounand`).  This Maxima function has not been fine-tuned by STACK.
+
+To solve this problem in general an outstanding developer task is to write an output format function, like Maxima's `tex` command.  However, this is a lot of work.
+
+
+Here is one specific example of question variables, sorting out unary minus problems.
+
+```
+p:-8*a*d-3*b*c+6*a*c+4*b*d;
+make_multsgn("space");
+sh:stack_disp([unary_minus_sort(p)],"");
+ta:[p,ev(p,simp)];
+````
+
+Then use `[{@sh@}]` in the syntax hint.
 
 
 ## Input type options
@@ -119,7 +129,7 @@ For example, try the following in the equiv-reasoning input.
     let a=2
     (x-2)*(x+2)=0
 
-Internally there is a special function `stacklet(v,a)` which is used to indicate the variable `v` should have the value `a` within equivalence reasoning.
+Internally there is a special function `stacklet(v,a)` which is used to indicate the variable `v` should have the value `a` within equivalence reasoning.  Note, this only assigns a value to a variable, and by design is not intended for definition of functions (sorry).
 
 To find all assignments in a student's answer, such as `ans1`, you can filter on the `stacklet` function within the feedback variables.  Note, the student's answer will be a list..
 

@@ -21,6 +21,7 @@
  * correctly, and second it serves to document the expected behaviour of answer
  * tests, which is useful for learning how they work.
  *
+ * @package    qtype_stack
  * @copyright  2012 University of Birmingham
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
@@ -64,8 +65,11 @@ $columns = [
     'tex'           => 'Expected TeX',
     'tex-display'   => 'CAS TeX',
     'display'       => 'Display',
+    'plain-tex'     => 'Plain atom TeX',
+    'plain-display' => 'Plain atom display',
     'errors'        => 'Errors',
     'notes'         => 'Notes',
+    
 ];
 
 $table = new flexible_table('stack_answertests');
@@ -114,6 +118,14 @@ foreach ($testdata as $data) {
             $class = 'fail';
             $outcome .= 'Display. ';
         }
+        $ptarget = $test->tex;
+        if ($test->texplain != '!') {
+            $ptarget = $test->texplain;
+        }
+        if ($test->plaindisplay != $ptarget) {
+            $class = 'fail';
+            $outcome .= 'Plain atoms. ';
+        }
     }
 
     $row = [
@@ -125,6 +137,8 @@ foreach ($testdata as $data) {
         'tex'           => '<pre>'.$dtarget.'</pre>',
         'tex-display'   => '<pre>'.$test->display.'</pre>',
         'display'       => format_text('\('.$test->display.'\)'),
+        'plain-tex'     => '<pre>'.$test->plaindisplay.'</pre>',
+        'plain-display' => format_text('\('.$test->plaindisplay.'\)'),
         'errors'        => $test->errors,
         'notes'         => $note,
     ];

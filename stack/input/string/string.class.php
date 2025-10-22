@@ -22,22 +22,24 @@ require_once(__DIR__ . '/../algebraic/algebraic.class.php');
  * A basic text-field input which is always interpreted as a Maxima string.
  * This has been requested to support the input of things like multi-base numbers.
  *
+ * @package    qtype_stack
  * @copyright  2018 University of Edinburgh
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class stack_string_input extends stack_algebraic_input {
-
+    // phpcs:ignore moodle.Commenting.VariableComment.Missing
     protected $extraoptions = [
         'hideanswer' => false,
         'allowempty' => false,
         'validator' => false,
     ];
 
-    /*
-     * @var integer We allow string inputs to be longer.
+    /**
+     * @var int We allow string inputs to be longer.
      */
     protected $maxinputlength = 262144;
 
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Function
     public function render(stack_input_state $state, $fieldname, $readonly, $tavalue) {
 
         if ($this->errors) {
@@ -77,6 +79,7 @@ class stack_string_input extends stack_algebraic_input {
         return html_writer::empty_tag('input', $attributes);
     }
 
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Function
     public function render_api_data($tavalue) {
         if ($this->errors) {
             throw new stack_exception("Error rendering input: " . implode(',', $this->errors));
@@ -116,13 +119,16 @@ class stack_string_input extends stack_algebraic_input {
     }
 
     /**
+     * Add description here.
      * @return string The teacher's answer, displayed to the student in the general feedback.
      */
     public function get_teacher_answer_display($value, $display) {
         if ($this->extraoptions['hideanswer']) {
             return '';
         }
-
+        if ($this->extraoptions['allowempty'] && trim($value) === '""') {
+            return stack_string('teacheranswerempty');
+        }
         $display = stack_utils::maxima_string_strip_mbox($display);
         return stack_string('teacheranswershow_disp', ['display' => $display]);
     }
@@ -169,7 +175,7 @@ class stack_string_input extends stack_algebraic_input {
      * Transforms the contents array into a maxima expression.
      * Most simply take the casstring from the first element of the contents array.
      *
-     * @param array|string $in
+     * @param array|string $contents
      * @return string
      */
     public function contents_to_maxima($contents) {
@@ -180,6 +186,12 @@ class stack_string_input extends stack_algebraic_input {
         }
     }
 
+    /**
+     * Make sure the input is a string wrapped in string quotes.
+     *
+     * @param string $ex
+     * @return string
+     */
     public function ensure_string($ex) {
         $ex = trim($ex);
         if (substr($ex, 0, 1) !== '"') {
@@ -188,7 +200,8 @@ class stack_string_input extends stack_algebraic_input {
         return $ex;
     }
 
-    public function get_api_solution_render($tadisplay) {
-        return stack_utils::maxima_string_strip_mbox($tadisplay);
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Function
+    public function get_api_solution_render($tadisplay, $ta) {
+        return $tadisplay;
     }
 }

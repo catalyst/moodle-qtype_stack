@@ -31,14 +31,16 @@ require_once(__DIR__ . '/../stack/input/factory.class.php');
 /**
  * Unit tests for stack_equiv_input.
  *
+ * @package    qtype_stack
  * @copyright  2015 The University of Edinburgh
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @group qtype_stack
  * @covers \stack_equiv_input
  */
-class input_equiv_test extends qtype_stack_testcase {
+final class input_equiv_test extends qtype_stack_testcase {
 
-    public function test_internal_validate_parameter() {
+    public function test_internal_validate_parameter(): void {
+
         $el = stack_input_factory::make('equiv', 'input', 'x^2');
         $this->assertTrue($el->validate_parameter('boxWidth', 30));
         $this->assertFalse($el->validate_parameter('boxWidth', -10));
@@ -50,7 +52,8 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertFalse($el->validate_parameter('showValidation', 5));
     }
 
-    public function test_render_blank() {
+    public function test_render_blank(): void {
+
         $el = stack_input_factory::make('equiv', 'ans1', '[]');
         $this->assertEquals('<textarea class="equivinput" name="stack1__ans1" id="stack1__ans1" rows="3" cols="25" ' .
                 'autocapitalize="none" spellcheck="false" data-stack-input-type="equiv" data-stack-input-decimal-separator="." ' .
@@ -59,7 +62,8 @@ class input_equiv_test extends qtype_stack_testcase {
                         'stack1__ans1', false, null));
     }
 
-    public function test_render_syntaxhint() {
+    public function test_render_syntaxhint(): void {
+
         $el = stack_input_factory::make('equiv', 'ans1', '[]');
         $el->set_parameter('syntaxHint',
             '[r1=0,r2=0,r3=0,r4=0,r5=0,r6=0,t*h*i*s+i*s+a+v*e*r*y+l*o*n*g+e*x*p*r*e*s*s*i*o*n=g*o*o*d+t*e*s*t!]');
@@ -73,7 +77,8 @@ class input_equiv_test extends qtype_stack_testcase {
                     'stack1__ans1', false, null));
     }
 
-    public function test_render_syntaxhint_placeholder() {
+    public function test_render_syntaxhint_placeholder(): void {
+
         $el = stack_input_factory::make('equiv', 'ans1', '[]');
         $el->set_parameter('syntaxHint',
             '[r1=0,r2=0,r3=0,r4=0,r5=0,r6=0]');
@@ -87,7 +92,8 @@ class input_equiv_test extends qtype_stack_testcase {
                 'stack1__ans1', false, null));
     }
 
-    public function test_render_firstline() {
+    public function test_render_firstline(): void {
+
         $el = stack_input_factory::make('equiv', 'ans1', '[]');
         $el->set_parameter('syntaxHint', 'firstline');
         $this->assertEquals('<textarea class="equivinput" name="stack1__ans1" id="stack1__ans1" rows="3" cols="25" ' .
@@ -97,7 +103,8 @@ class input_equiv_test extends qtype_stack_testcase {
                         'stack1__ans1', false, '[x^2=4,x=2 or x=-2]'));
     }
 
-    public function test_render_hint() {
+    public function test_render_hint(): void {
+
         $el = stack_input_factory::make('equiv', 'ans1', '[]');
         // Note the syntax hint must be a list.
         $el->set_parameter('syntaxHint', '[x^2=3]');
@@ -108,7 +115,8 @@ class input_equiv_test extends qtype_stack_testcase {
                         'stack1__ans1', false, '[x^2=4,x=2 or x=-2]'));
     }
 
-    public function test_validate_student_response_1() {
+    public function test_validate_student_response_1(): void {
+
         $options = new stack_options();
         $el = stack_input_factory::make('equiv', 'sans1', '[x^2-2*x+1=0]');
         $state = $el->validate_student_response(['sans1' => 'x^2-2*x+1=0'], $options, '[x^2-2*x+1=0]',
@@ -128,7 +136,8 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('', $state->note);
     }
 
-    public function test_validate_student_response_2() {
+    public function test_validate_student_response_2(): void {
+
         $options = new stack_options();
         $el = stack_input_factory::make('equiv', 'sans1', '[x^2-5*x+6=0]');
         $state = $el->validate_student_response(['sans1' => "x^2-5*x+6=0\nx=2 or x=3"], $options, '[x^2-5*x+6=0]',
@@ -138,7 +147,8 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('', $state->note);
     }
 
-    public function test_validate_student_response_3() {
+    public function test_validate_student_response_3(): void {
+
         $options = new stack_options();
         $el = stack_input_factory::make('equiv', 'sans1', '[x^2-5*x+6=0]');
         $state = $el->validate_student_response(['sans1' => "x^2-5*x+6=0\n x={2,3}"], $options, '[x^2-5*x+6=0]',
@@ -148,7 +158,8 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('', $state->note);
     }
 
-    public function test_validate_student_response_invalid_1() {
+    public function test_validate_student_response_invalid_1(): void {
+
         $options = new stack_options();
         $el = stack_input_factory::make('equiv', 'sans1', '[x^2-5*x+6,stackeq((x-2)*(x-3))]');
         $state = $el->validate_student_response(['sans1' => "x^2-5*x+6\n =(x-2)(x-3)"], $options,
@@ -160,7 +171,8 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('missing_stars', $state->note);
     }
 
-    public function test_validate_student_response_invalid_2() {
+    public function test_validate_student_response_invalid_2(): void {
+
         $options = new stack_options();
         $el = stack_input_factory::make('equiv', 'sans1', '[x^2-5*x+6,stackeq((x-2)*(x-3))]');
         $state = $el->validate_student_response(['sans1' => "x^2-5*x+6=0\n(x-2)(x-3)=0"], $options,
@@ -172,7 +184,8 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('missing_stars', $state->note);
     }
 
-    public function test_validate_student_response_invalid_3() {
+    public function test_validate_student_response_invalid_3(): void {
+
         $options = new stack_options();
         $el = stack_input_factory::make('equiv', 'sans1', '[x^2-5*x+6,stackeq((x-2)*(x-3))]');
         $state = $el->validate_student_response(['sans1' => "x^2-5*x+6\n =(x-2)*x^"], $options,
@@ -183,7 +196,8 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('finalChar', $state->note);
     }
 
-    public function test_validate_student_response_invalid_4() {
+    public function test_validate_student_response_invalid_4(): void {
+
         $options = new stack_options();
         $el = stack_input_factory::make('equiv', 'sans1', '[x^2-5*x+6=0,(x-2)*(x-3)=0]');
         $state = $el->validate_student_response(['sans1' => "x^2-5*x+6=0\n x=2 or x=3)"], $options,
@@ -199,7 +213,8 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('missingLeftBracket', $state->note);
     }
 
-    public function test_validate_student_response_invalid_5() {
+    public function test_validate_student_response_invalid_5(): void {
+
         $options = new stack_options();
         $el = stack_input_factory::make('equiv', 'sans1', '[x^2-5*x+6=0,(x-2)*(x-3)=0]');
         $el->set_parameter('showValidation', 3);
@@ -216,7 +231,24 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('missingLeftBracket', $state->note);
     }
 
-    public function test_validate_student_response_with_equiv() {
+    public function test_validate_student_response_invalid_mixed(): void {
+        $options = new stack_options();
+        $el = stack_input_factory::make('equiv', 'sans1', '[x^2-5*x+6=0,(x-2)*(x-3)=0]');
+        $el->set_parameter('showValidation', 3);
+        $state = $el->validate_student_response(['sans1' => "x^2-5*x+6=0\n (x-2)*(x-3)"], $options,
+            '[x^2-5*x+6=0,(x-2)*(x-3)=0]', new stack_cas_security());
+        $this->assertEquals(stack_input::INVALID, $state->status);
+        $this->assertEquals('', $state->errors);
+        $this->assertEquals('[x^2-5*x+6 = 0,(x-2)*(x-3)]', $state->contentsmodified);
+        $this->assertEquals('\[ \begin{array}{lll} &x^2-5\cdot x+6=0& \cr &\left(x-2\right)\cdot ' .
+            '\left(x-3\right)& \cr \end{array} \]<p>When reasoning by equivalence either (i) rewrite expressions, ' .
+            'or (ii) rewrite equations step by step.  You appear to mix both, which is invalid.</p>',
+            $state->contentsdisplayed);
+        $this->assertEquals('equivmixedreasoning', $state->note);
+    }
+
+    public function test_validate_student_response_with_equiv(): void {
+
         $options = new stack_options();
         $val = '[x^2-5*x+6=0, x = 2 nounor x = 3]';
         $el = stack_input_factory::make('equiv', 'sans1', $val);
@@ -248,7 +280,8 @@ class input_equiv_test extends qtype_stack_testcase {
                 $el->get_teacher_answer_display($val, '###'));
     }
 
-    public function test_validate_student_response_without_equiv() {
+    public function test_validate_student_response_without_equiv(): void {
+
         $options = new stack_options();
         $el = stack_input_factory::make('equiv', 'sans1', '[x^2-5*x+6=0]');
         $el->set_parameter('options', 'hideequiv');
@@ -261,7 +294,8 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('', $state->note);
     }
 
-    public function test_validate_student_response_without_domain() {
+    public function test_validate_student_response_without_domain(): void {
+
         $options = new stack_options();
         $el = stack_input_factory::make('equiv', 'sans1', '[1/(x-1)+1/(x-2)=0]');
         $el->set_parameter('options', 'hidedomain');
@@ -274,7 +308,8 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('', $state->note);
     }
 
-    public function test_validate_student_response_without_assume_pos() {
+    public function test_validate_student_response_without_assume_pos(): void {
+
         $options = new stack_options();
         $el = stack_input_factory::make('equiv', 'sans1', '[x^2=4,x=2 nounor x=-2]');
         $state = $el->validate_student_response(['sans1' => "x^2=4\nx=2 or x=-2"], $options, '[x^2=4,x=2 nounor x=-2]',
@@ -286,7 +321,8 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('', $state->note);
     }
 
-    public function test_validate_student_response_without_assume_pos_wrong() {
+    public function test_validate_student_response_without_assume_pos_wrong(): void {
+
         $options = new stack_options();
         $el = stack_input_factory::make('equiv', 'sans1', '[x^2=4,x=2 nounor x=-2]');
         $state = $el->validate_student_response(['sans1' => "x^2=4\nx=2"], $options, '[x^2=4,x=2 nounor x=-2]',
@@ -299,7 +335,8 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('', $state->note);
     }
 
-    public function test_validate_student_response_with_assume_pos() {
+    public function test_validate_student_response_with_assume_pos(): void {
+
         $options = new stack_options();
         $el = stack_input_factory::make('equiv', 'sans1', '[x^2=4,x=2 nounor x=-2]');
         $el->set_parameter('options', 'assume_pos');
@@ -314,7 +351,8 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('', $state->note);
     }
 
-    public function test_validate_student_response_with_firstline() {
+    public function test_validate_student_response_with_firstline(): void {
+
         $options = new stack_options();
         $el = stack_input_factory::make('equiv', 'sans1', '[x^2=4,x=2 nounor x=-2]');
         $el->set_parameter('options', 'firstline');
@@ -327,7 +365,8 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('', $state->note);
     }
 
-    public function test_validate_student_response_with_firstline_neg() {
+    public function test_validate_student_response_with_firstline_neg(): void {
+
         // This test case has some minus signs which were causing problems on older systems.
         $options = new stack_options();
         $el = stack_input_factory::make('equiv', 'sans1', '[2*x-2+4 = -6,2*x+2 = -6,2*x = -8,x = -4]');
@@ -343,7 +382,8 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('missing_stars', $state->note);
     }
 
-    public function test_validate_student_response_with_firstline_false() {
+    public function test_validate_student_response_with_firstline_false(): void {
+
         $options = new stack_options();
         $el = stack_input_factory::make('equiv', 'sans1', '[x^2=4,x=2 nounor x=-2]');
         $el->set_parameter('options', 'firstline');
@@ -357,7 +397,8 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('', $state->note);
     }
 
-    public function test_validate_student_response_insert_stars_0_true() {
+    public function test_validate_student_response_insert_stars_0_true(): void {
+
         $options = new stack_options();
         $el = stack_input_factory::make('equiv', 'sans1', '[(x-1)*(x+4), stackeq(x^2-x+4*x-4),stackeq(x^2+3*x-4)]');
         $el->set_parameter('insertStars', 1);
@@ -375,7 +416,8 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('missing_stars', $state->note);
     }
 
-    public function test_validate_student_response_insert_stars_0_false() {
+    public function test_validate_student_response_insert_stars_0_false(): void {
+
         $options = new stack_options();
         $el = stack_input_factory::make('equiv', 'sans1', '[(x-1)*(x+4), stackeq(x^2-x+4*x-4),stackeq(x^2+3*x-4)]');
         $el->set_parameter('insertStars', 0);
@@ -390,7 +432,8 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('missing_stars', $state->note);
     }
 
-    public function test_validate_student_response_equational_1() {
+    public function test_validate_student_response_equational_1(): void {
+
         $options = new stack_options();
         $el = stack_input_factory::make('equiv', 'sans1', '[(x-1)*(x+4), stackeq(x^2-x+4*x-4),stackeq(x^2+3*x-4)]');
         $state = $el->validate_student_response(['sans1' => "(x-1)*(x+4)\n=x^2-x+4*x-4\n=x^2+3*x-4"], $options,
@@ -406,7 +449,8 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('', $state->note);
     }
 
-    public function test_validate_student_response_equational_insert_stars_true() {
+    public function test_validate_student_response_equational_insert_stars_true(): void {
+
         $options = new stack_options();
         $el = stack_input_factory::make('equiv', 'sans1', '[a^2-a*b, stackeq(a*(a-b))]');
         $el->set_parameter('insertStars', 2);
@@ -423,7 +467,8 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('missing_stars', $state->note);
     }
 
-    public function test_validate_student_response_without_assume_real() {
+    public function test_validate_student_response_without_assume_real(): void {
+
         $options = new stack_options();
         $el = stack_input_factory::make('equiv', 'sans1', '[x^4=16,x=2 nounor x=-2]');
         $state = $el->validate_student_response(['sans1' => "x^4=16\nx=2 or x=-2"], $options, '[x^4=16,x=2 nounor x=-2]',
@@ -436,7 +481,8 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('', $state->note);
     }
 
-    public function test_validate_student_response_with_assume_real() {
+    public function test_validate_student_response_with_assume_real(): void {
+
         $options = new stack_options();
         $el = stack_input_factory::make('equiv', 'sans1', '[x^4=16,x=2 nounor x=-2]');
         $el->set_parameter('options', 'assume_real');
@@ -449,7 +495,8 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('', $state->note);
     }
 
-    public function test_validate_student_response_with_assume_wrong() {
+    public function test_validate_student_response_with_assume_wrong(): void {
+
         $options = new stack_options();
         $el = stack_input_factory::make('equiv', 'sans1', '[x^4=16,x=2 nounor x=-2]');
         $el->set_parameter('options', 'assume_real');
@@ -462,7 +509,8 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('', $state->note);
     }
 
-    public function test_validate_student_response_with_assume_real_complex() {
+    public function test_validate_student_response_with_assume_real_complex(): void {
+
         $options = new stack_options();
         $el = stack_input_factory::make('equiv', 'sans1', '[x^4=16,x=2 nounor x=-2]');
         $el->set_parameter('options', 'assume_real');
@@ -477,7 +525,8 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('', $state->note);
     }
 
-    public function test_validate_student_response_with_hideequiv() {
+    public function test_validate_student_response_with_hideequiv(): void {
+
         $options = new stack_options();
         $el = stack_input_factory::make('equiv', 'sans1', '[x^4=16,x=2 nounor x=-2]');
         $el->set_parameter('options', 'hideequiv');
@@ -490,9 +539,10 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('', $state->note);
     }
 
-    public function test_validate_student_response_with_natural_domain_sqrt() {
+    public function test_validate_student_response_with_natural_domain_sqrt(): void {
+
         $options = new stack_options();
-        $options->set_option('multiplicationsign', 'none');
+        $options->set_option('multiplicationsign', 'space');
         $ta = '[sqrt(3*x+4) = 2+sqrt(x+2), 3*x+4=4+4*sqrt(x+2)+(x+2),x-1=2*sqrt(x+2),x^2-2*x+1 '.
                 '= 4*x+8,x^2-6*x-7 = 0,(x-7)*(x+1) = 0,x=7 nounor x=-1]';
         $el = stack_input_factory::make('equiv', 'sans1', $ta);
@@ -514,9 +564,10 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('', $state->note);
     }
 
-    public function test_validate_student_response_with_natural_domain_rational() {
+    public function test_validate_student_response_with_natural_domain_rational(): void {
+
         $options = new stack_options();
-        $options->set_option('multiplicationsign', 'none');
+        $options->set_option('multiplicationsign', 'space');
         $ta = '[5*x/(2*x+1)-3/(x+1) = 1,5*x*(x+1)-3*(2*x+1)=(x+1)*(2*x+1),(x-2)*(3*x+2)=0,x=2 nounor x=-2/3]';
         $sa = "5*x/(2*x+1)-3/(x+1) = 1\n5*x*(x+1)-3*(2*x+1)=(x+1)*(2*x+1)\n(x-2)*(3*x+2)=0\nx=2 or x=-2/3";
         $el = stack_input_factory::make('equiv', 'sans1', $ta);
@@ -533,9 +584,10 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('', $state->note);
     }
 
-    public function test_validate_student_response_with_natural_domain_logs() {
+    public function test_validate_student_response_with_natural_domain_logs(): void {
+
         $options = new stack_options();
-        $options->set_option('multiplicationsign', 'none');
+        $options->set_option('multiplicationsign', 'space');
         $ta = '[lg(x+17,3)-2=lg(2*x,3),lg(x+17,3)-lg(2*x,3)=2,lg((x+17)/(2*x),3)=2,(x+17)/(2*x)=3^2,(x+17)=18*x,17*x=17,x=1]';
         $sa = "lg(x+17,3)-2=lg(2*x,3)\nlg(x+17,3)-lg(2*x,3)=2\nlg((x+17)/(2*x),3)=2\n(x+17)/(2*x)=3^2\n(x+17)=18*x\n17*x=17\nx=1";
         $el = stack_input_factory::make('equiv', 'sans1', $ta);
@@ -547,7 +599,7 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('\[ \begin{array}{lll} &\log_{3}\left(x+17\right)-2=\log_{3}\left(2\,x\right)&'.
                 '{\color{blue}{{x \in {\left( 0,\, \infty \right)}}}}\cr \color{green}{\Leftrightarrow}'.
                 '&\log_{3}\left(x+17\right)-\log_{3}\left(2\,x\right)=2&{\color{blue}{{x \in {\left( 0,\, \infty \right)}}}}'.
-                '\cr \color{green}{\Leftrightarrow}&\log_{3}\left(\frac{x+17}{2\,x}\right)=2& \cr \color{green}{\log(?)}'.
+                '\cr \color{green}{\Leftrightarrow}&\log_{3}\left(\frac{x+17}{2\,x}\right)=2& \cr \color{green}{\Leftrightarrow}'.
                 '&\frac{x+17}{2\,x}=3^2&{\color{blue}{{x \not\in {\left \{0 \right \}}}}}\cr '.
                 '\color{green}{\Leftrightarrow}&x+17=18\,x'.
                 '& \cr \color{green}{\Leftrightarrow}&17\,x=17& \cr \color{green}{\Leftrightarrow}&x=1& \cr \end{array} \]',
@@ -555,9 +607,10 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('', $state->note);
     }
 
-    public function test_validate_student_response_with_equational_reasoning() {
+    public function test_validate_student_response_with_equational_reasoning(): void {
+
         $options = new stack_options();
-        $options->set_option('multiplicationsign', 'none');
+        $options->set_option('multiplicationsign', 'space');
         $ta = '[x^2+2*a*x,stackeq(x^2+2*a*x+a^2-a^2),stackeq((x+a)^2-a^2)]';
         $sa = "x^2+2*a*x\n= x^2+2*a*x+a^2-a^2\n= (x+a)^2-a^2";
         $el = stack_input_factory::make('equiv', 'sans1', $ta);
@@ -571,9 +624,10 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('', $state->note);
     }
 
-    public function test_validate_student_response_with_equational_nontrivial_difference() {
+    public function test_validate_student_response_with_equational_nontrivial_difference(): void {
+
         $options = new stack_options();
-        $options->set_option('multiplicationsign', 'none');
+        $options->set_option('multiplicationsign', 'space');
         $ta = '[abs(x-1/2)+abs(x+1/2)-2,stackeq(abs(x)-1)]';
         $sa = "abs(x-1/2)+abs(x+1/2)-2\n= abs(x)-1";
         $el = stack_input_factory::make('equiv', 'sans1', $ta);
@@ -587,9 +641,10 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('', $state->note);
     }
 
-    public function test_validate_student_response_with_equation_then_equational() {
+    public function test_validate_student_response_with_equation_then_equational(): void {
+
         $options = new stack_options();
-        $options->set_option('multiplicationsign', 'none');
+        $options->set_option('multiplicationsign', 'space');
         $ta = '[(x-1)^2=(x-1)*(x-1), stackeq(x^2-2*x+1)]';
         $sa = "(x-1)^2=(x-1)*(x-1)\n=x^2-2*x+1";
         $el = stack_input_factory::make('equiv', 'sans1', $ta);
@@ -604,9 +659,10 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('', $state->note);
     }
 
-    public function test_validate_student_response_with_equation_then_equational_1() {
+    public function test_validate_student_response_with_equation_then_equational_1(): void {
+
         $options = new stack_options();
-        $options->set_option('multiplicationsign', 'none');
+        $options->set_option('multiplicationsign', 'space');
         $ta = '[(x-1)^2=(x-1)*(x-1), stackeq(x^2-2*x+2)]';
         $sa = "(x-1)^2=(x-1)*(x-1)\n= x^2-2*x+2";
         $el = stack_input_factory::make('equiv', 'sans1', $ta);
@@ -620,9 +676,10 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('', $state->note);
     }
 
-    public function test_validate_student_response_with_equation_then_equational_2() {
+    public function test_validate_student_response_with_equation_then_equational_2(): void {
+
         $options = new stack_options();
-        $options->set_option('multiplicationsign', 'none');
+        $options->set_option('multiplicationsign', 'space');
         $ta = '[(x-2)^2=x^2-2*x+1, stackeq(x^2-2*x+1)]';
         $sa = "(x-2)^2=(x-1)*(x-1)\n= x^2-2*x+1";
         $el = stack_input_factory::make('equiv', 'sans1', $ta);
@@ -636,7 +693,8 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('', $state->note);
     }
 
-    public function test_validate_student_response_invalid_comments() {
+    public function test_validate_student_response_invalid_comments(): void {
+
         $options = new stack_options();
         $el = stack_input_factory::make('equiv', 'sans1', '[x^2-5*x+6,stackeq((x-2)*(x-3))]');
         $state = $el->validate_student_response(['sans1' => "x^2-5*x+6\n \"Factoring gives \"\n=(x-2)*(x-3)"], $options,
@@ -648,7 +706,8 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('equivnocomments', $state->note);
     }
 
-    public function test_validate_student_response_valid_comments() {
+    public function test_validate_student_response_valid_comments(): void {
+
         $options = new stack_options();
         $el = stack_input_factory::make('equiv', 'sans1', '[x^2-5*x+6,stackeq((x-2)*(x-3))]');
         $el->set_parameter('options', 'comments');
@@ -659,9 +718,10 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('', $state->note);
     }
 
-    public function test_validate_student_response_forbid_comments() {
+    public function test_validate_student_response_forbid_comments(): void {
+
         $options = new stack_options();
-        $options->set_option('multiplicationsign', 'none');
+        $options->set_option('multiplicationsign', 'space');
         $ta = '[(x-2)^2=x^2-2*x+1, stackeq(x^2-2*x+1)]';
         $sa = "x^2-1\nstackeq((x-1)*(x+1))\n\"Comments are forbidden normally\"\nx^2-1=0\n(x-1)*(x+1)=0";
         $el = stack_input_factory::make('equiv', 'sans1', $ta);
@@ -677,28 +737,29 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('equivnocomments', $state->note);
     }
 
-    public function test_validate_student_response_with_comments() {
+    public function test_validate_student_response_with_comments(): void {
+
         $options = new stack_options();
-        $options->set_option('multiplicationsign', 'none');
+        $options->set_option('multiplicationsign', 'space');
         $ta = '[(x-2)^2=x^2-2*x+1, stackeq(x^2-2*x+1)]';
-        // This long example also tests a switch from equational reasoning to equivalence reasoning and back again.
-        $sa = "x^2-1\nstackeq((x-1)*(x+1))\n\"Comments are not forbidden!\"\nx^2-1=0\n(x-1)*(x+1)=0\n\"Comment 2\"\n".
+        $sa = "x^2-1\nstackeq((x-1)*(x+1))\n\"Comments are not forbidden!\"\nx^2-1\n(x-1)*(x+1)\n\"Comment 2\"\n".
             "x^2-1\n=(x-1)*(x+1)";
         $el = stack_input_factory::make('equiv', 'sans1', $ta);
         $el->set_parameter('options', 'comments');
         $state = $el->validate_student_response(['sans1' => $sa], $options, $ta, new stack_cas_security());
         $this->assertEquals(stack_input::VALID, $state->status);
-        $this->assertEquals('[x^2-1,stackeq((x-1)*(x+1)),"Comments are not forbidden!",x^2-1 = 0,(x-1)*(x+1) = 0,'.
+        $this->assertEquals('[x^2-1,stackeq((x-1)*(x+1)),"Comments are not forbidden!",x^2-1,(x-1)*(x+1),'.
                 '"Comment 2",x^2-1,stackeq((x-1)*(x+1))]', $state->contentsmodified);
         $this->assertEquals('\[ \begin{array}{lll} &x^2-1& \cr \color{green}{\checkmark}&=\left(x-1\right)\,\left(x+1\right)&'.
-                ' \cr &\text{Comments are not forbidden!}& \cr &x^2-1=0& \cr \color{green}{\Leftrightarrow}&\left(x-1\right)'.
-                '\,\left(x+1\right)=0& \cr &\text{Comment 2}& \cr &x^2-1& \cr \color{green}{\checkmark}'.
+                ' \cr &\text{Comments are not forbidden!}& \cr &x^2-1& \cr \color{green}{\checkmark}&\left(x-1\right)'.
+                '\,\left(x+1\right)& \cr &\text{Comment 2}& \cr &x^2-1& \cr \color{green}{\checkmark}'.
                 '&=\left(x-1\right)\,\left(x+1\right)& \cr \end{array} \]',
                 $state->contentsdisplayed);
         $this->assertEquals('', $state->note);
     }
 
-    public function test_validate_student_response_valid_empty() {
+    public function test_validate_student_response_valid_empty(): void {
+
         $options = new stack_options();
         $el = stack_input_factory::make('equiv', 'sans1', '[x^2-5*x+6,stackeq((x-2)*(x-3))]');
         $el->set_parameter('options', 'allowempty');
@@ -710,23 +771,26 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals('', $state->note);
     }
 
-    public function test_validate_student_response_surds() {
+    public function test_validate_student_response_surds(): void {
+
         $options = new stack_options();
-        $options->set_option('multiplicationsign', 'none');
-        $ta = '[sqrt((x-3)*(x-5)),stackeq(x^2-8*x+15)]';
-        $sa = "sqrt((x-3)*(x-5))\n=sqrt(x-3)*sqrt(x-5)";
+        $options->set_option('multiplicationsign', 'space');
+        $ta = '[sqrt((x-3)*(x-5))=0,x^2-8*x+15=0]';
+        $sa = "sqrt((x-3)*(x-5))=0\nsqrt(x-3)*sqrt(x-5)=0";
         $el = stack_input_factory::make('equiv', 'sans1', $ta);
         $state = $el->validate_student_response(['sans1' => $sa], $options, $ta, new stack_cas_security());
         $this->assertEquals(stack_input::VALID, $state->status);
-        $this->assertEquals('[sqrt((x-3)*(x-5)),stackeq(sqrt(x-3)*sqrt(x-5))]', $state->contentsmodified);
-        $this->assertEquals('\[ \begin{array}{lll} &\sqrt{\left(x-3\right)\,\left(x-5\right)}&' .
-            '{\color{blue}{{x \in {\left[ 5,\, \infty \right) \cup \left( -\infty ,\, 3\right]}}}}\cr \color{red}{?}&' .
-            '=\sqrt{x-3}\,\sqrt{x-5}&{\color{blue}{{x \in {\left[ 5,\, \infty \right)}}}}\cr \end{array} \]',
+        $this->assertEquals('[sqrt((x-3)*(x-5)) = 0,sqrt(x-3)*sqrt(x-5) = 0]', $state->contentsmodified);
+        $this->assertEquals('\[ \begin{array}{lll} &\sqrt{\left(x-3\right)\,\left(x-5\right)}=0&' .
+            '{\color{blue}{{x \in {\left[ 5,\, \infty \right) \cup \left( -\infty ,\, 3\right]}}}}\cr ' .
+            '\color{green}{\Leftrightarrow}&' .
+            '\sqrt{x-3}\,\sqrt{x-5}=0&{\color{blue}{{x \in {\left[ 5,\, \infty \right)}}}}\cr \end{array} \]',
             $state->contentsdisplayed);
         $this->assertEquals('', $state->note);
     }
 
-    public function test_validate_student_stacklet() {
+    public function test_validate_student_stacklet(): void {
+
         $options = new stack_options();
         $val = '[x^2=a,stacklet(a,4),x^2=4,x=2 nounor x=-2]';
         $el = stack_input_factory::make('equiv', 'sans1', $val);
@@ -753,7 +817,8 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals($cr['sans1_val'], $sansv);
     }
 
-    public function test_validate_student_pm() {
+    public function test_validate_student_pm(): void {
+
         $options = new stack_options();
         // This contains infix and prefix +- operations.
         $val = '[(x-a)^2=4,x-a= #pm#2,x=a#pm#2]';
@@ -793,7 +858,8 @@ class input_equiv_test extends qtype_stack_testcase {
 
     }
 
-    public function test_validate_student_response_forbidwords_lists() {
+    public function test_validate_student_response_forbidwords_lists(): void {
+
         // This input type always returns a list, so if we forbid lists then we need a special case.
         $options = new stack_options();
 
@@ -823,7 +889,8 @@ class input_equiv_test extends qtype_stack_testcase {
         $this->assertEquals($cr['sans1_val'], $sansv);
     }
 
-    public function test_validate_student_response_floats() {
+    public function test_validate_student_response_floats(): void {
+
         $options = new stack_options();
         $val = '[4*x=2,x=1/2]';
         $el = stack_input_factory::make('equiv', 'sans1', $val);

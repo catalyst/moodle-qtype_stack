@@ -14,6 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with STACK.  If not, see <http://www.gnu.org/licenses/>.
 
+/**
+ * Add description here!
+ * @package    qtype_stack
+ * @copyright  2024 University of Edinburgh.
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later.
+ */
+
 defined('MOODLE_INTERNAL') || die();
 
 require_once(__DIR__ . '/../block.interface.php');
@@ -26,8 +33,10 @@ require_once(__DIR__ . '/../../../../vle_specific.php');
 require_once(__DIR__ . '/iframe.block.php');
 stack_cas_castext2_iframe::register_counter('///PARSONS_COUNT///');
 
+// phpcs:ignore moodle.Commenting.MissingDocblock.Class
 class stack_cas_castext2_parsons extends stack_cas_castext2_block {
 
+    // phpcs:ignore moodle.Commenting.VariableComment.Missing
     public static $namedversions = [
         'cdn' => [
             'js' => 'https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js',
@@ -38,6 +47,7 @@ class stack_cas_castext2_parsons extends stack_cas_castext2_block {
         ],
     ];
 
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Function
     public function compile($format, $options): ?MP_Node {
         $r = new MP_List([new MP_String('iframe')]);
 
@@ -50,8 +60,9 @@ class stack_cas_castext2_parsons extends stack_cas_castext2_block {
         // Whether to have all keys in available list cloned.
         $clone = 'false';
 
-        // MathJax version (either "2" or "3").
-        $mathjaxversion = '2';
+        // MathJax version.
+        $mathjaxversion = stack_get_mathjax_version();
+        $mathjaxversionmajor = explode(".", $mathjaxversion)[0];
 
         // Number of available columns.
         $columns = null;
@@ -133,7 +144,7 @@ class stack_cas_castext2_parsons extends stack_cas_castext2_block {
         $r->items[] = new MP_String(json_encode($xpars));
 
         // Plug in some style and scripts.
-        $mathjax = ($mathjaxversion === "2") ? stack_get_mathjax_url() : stack_get_mathjax3_url();
+        $mathjax = stack_get_mathjax_url();
         $r->items[] = new MP_List([
             new MP_String('script'),
             new MP_String(json_encode(['type' => 'text/javascript', 'src' => $mathjax])),
@@ -160,7 +171,7 @@ class stack_cas_castext2_parsons extends stack_cas_castext2_block {
             }
         }
 
-        // Identify default proof mode based on block header params
+        // Identify default proof mode based on block header params.
         // Note that proof mode behaves the same as the general mode, but we just
         // need to redefine columns.
         $proofmode = ($columns === null && $rows === null);
@@ -349,13 +360,13 @@ class stack_cas_castext2_parsons extends stack_cas_castext2_block {
         $code .= 'window.addEventListener("resize", () => stackSortable.resize_grid_items())' . "\n";
 
         // Typeset MathJax. MathJax 2 uses Queue, whereas 3 works with promises.
-        $code .= ($mathjaxversion === "2") ?
+        $code .= ($mathjaxversionmajor === "2") ?
             'MathJax.Hub.Queue(["Typeset", MathJax.Hub]);' :
             'var mathJaxPromise = MathJax.typesetPromise();';
 
         // Resize the outer iframe if the author does not pre-define width. Method depends on MathJax 2 or MathJax 3.
         if (!$existsuserheight) {
-            $code .= ($mathjaxversion === "2") ?
+            $code .= ($mathjaxversionmajor === "2") ?
                 'MathJax.Hub.Queue(() => {
                     stackSortable.resize_grid_items();
                     stack_js.resize_containing_frame("' . $width . '", get_iframe_height() + "px");})' :
@@ -375,20 +386,24 @@ class stack_cas_castext2_parsons extends stack_cas_castext2_block {
         return $r;
     }
 
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Function
     public function is_flat(): bool {
         // Even when the content were flat we need to evaluate this during postprocessing.
         return false;
     }
 
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Function
     public function postprocess(array $params, castext2_processor $processor,
         castext2_placeholder_holder $holder): string {
         return 'This is never happening! The logic goes to [[iframe]].';
     }
 
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Function
     public function validate_extract_attributes(): array {
         return [];
     }
 
+    // phpcs:ignore moodle.Commenting.MissingDocblock.Function
     public function validate(
         &$errors = [],
         $options = []
@@ -466,16 +481,13 @@ class stack_cas_castext2_parsons extends stack_cas_castext2_block {
             ]);
         }
 
-        // Check MathJax version is valid.
-        if (array_key_exists('mathjax', $this->params)) {
-            $validmjversions = ['2', '3'];
-            if (!in_array($this->params['mathjax'], $validmjversions)) {
-                $valid = false;
-                $err[] = stack_string('stackBlock_parsons_unknown_mathjax_version', [
-                    'mjversion' => implode(', ',
-                    $validmjversions),
-                ]);
-            }
+        // Check MathJax version has been parsed correctly.
+        $mathjaxversionmajor = explode(".", stack_get_mathjax_version())[0];
+        if (!$mathjaxversionmajor === "2" || !$mathjaxversionmajor === "3") {
+            $valid = false;
+            $err[] = stack_string('stackBlock_parsons_unknown_mathjax_version', [
+                'mjversion' => '2, 3',
+            ]);
         }
 
         // Check value of transpose is only "true" or "false".
@@ -490,7 +502,7 @@ class stack_cas_castext2_parsons extends stack_cas_castext2_block {
         if (array_key_exists("columns", $this->params)) {
             if (!(preg_match('/^\d+$/', $this->params["columns"]) && intval($this->params["columns"]) > 0)) {
                 $valid = false;
-                $err[] = stack_string("stackBlock_parsons_invalid_columns_value");
+                $err[] = stack_string('stackBlock_parsons_invalid_columns_value');
             }
         }
 
@@ -498,21 +510,21 @@ class stack_cas_castext2_parsons extends stack_cas_castext2_block {
         if (array_key_exists("rows", $this->params)) {
             if (!(preg_match('/^\d+$/', $this->params["rows"]) && intval($this->params["rows"]) > 0)) {
                 $valid = false;
-                $err[] = stack_string("stackBlock_parsons_invalid_rows_value");
+                $err[] = stack_string('stackBlock_parsons_invalid_rows_value');
             }
         }
 
         // Check we cannot have rows specified without columns.
         if (array_key_exists("rows", $this->params) && !array_key_exists("columns", $this->params)) {
             $valid = false;
-            $err[] = stack_string("stackBlock_parsons_underdefined_grid");
+            $err[] = stack_string('stackBlock_parsons_underdefined_grid');
         }
 
         // Check value of `item-height` is a string containing a positive integer.
         if (array_key_exists("item-height", $this->params)) {
             if (!(preg_match('/^\d+$/', $this->params["item-height"]) && intval($this->params["item-height"]) > 0)) {
                 $valid = false;
-                $err[] = stack_string("stackBlock_parsons_invalid_item-height_value");
+                $err[] = stack_string('stackBlock_parsons_invalid_item-height_value');
             }
         }
 
@@ -520,7 +532,7 @@ class stack_cas_castext2_parsons extends stack_cas_castext2_block {
         if (array_key_exists("item-width", $this->params)) {
             if (!(preg_match('/^\d+$/', $this->params["item-width"]) && intval($this->params["item-width"]) > 0)) {
                 $valid = false;
-                $err[] = stack_string("stackBlock_parsons_invalid_item-width_value");
+                $err[] = stack_string('stackBlock_parsons_invalid_item-width_value');
             }
         }
 
@@ -553,5 +565,14 @@ class stack_cas_castext2_parsons extends stack_cas_castext2_block {
         }
 
         return $valid;
+    }
+
+    /**
+     * Is this an interactive block?
+     * If true, we can't generate a static version.
+     * @return bool
+     */
+    public function is_interactive(): bool {
+        return true;
     }
 }

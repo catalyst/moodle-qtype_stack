@@ -19,7 +19,7 @@ The question author should write all steps to be shown to the student as a list 
 the steps. Note the `\` character needs to be protected within strings, so for example we have to type `\\(n=2m+1\\)` rather than just `\(n=2m+1\)`.
 
 ```
-stack_include("contribl://prooflib.mac");
+stack_include_contrib("prooflib.mac");
 
 proof_steps: [
     ["assume", "Assume that \\(n\\) is odd."],
@@ -52,7 +52,7 @@ The `[[parsons]]` block is a wrapper for the javascript library "Sortable.js", o
 [[/parsons]]
 ````
 
-A list of all Sortable.js options can be found [here](https://github.com/SortableJS/Sortable#options), currently these are set at the default option for `"animation"` which controls the animation speed.
+A list of all Sortable.js options can be found on the [SortableJS GitHub](https://github.com/SortableJS/Sortable#options), currently these are set at the default option for `"animation"` which controls the animation speed.
 
 ````
 {

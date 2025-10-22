@@ -1,9 +1,8 @@
 # Defining variables
 
-There are two fields which allow you to define and manipulate computer algebra system variables.
-These are called the Question Variables and Feedback variables.
+Only two fields allow you to define and manipulate computer algebra system (Maxima) variables the Question Variables and Feedback variables.
 
-The field is a string which contains a list of assignments of the form
+Individual assignments take the form
 
     key : value;
 
@@ -11,19 +10,13 @@ for example
 
     p : (x-1)^3;
 
-Each `key` is the name of a variable local to the question, and `value` is an expression in [Maxima's](../CAS/Maxima_background.md) language.
-When evaluated, this list is passed to the CAS, and evaluated in order. The value obtained for each key will be stored and used later, for example in the question marking routines.
-The keys need not be unique, although only the last value will be available for use later.
+Each `key` is the name of a variable local to the question, or a function name.  The `value` is an expression in [Maxima's](../CAS/Maxima_background.md) language.  This list is passed to the CAS, and evaluated in order. The value obtained for each key will be stored and used later, for example in the question marking routines. The keys need not be unique, although only the last value will be available for use later.
 
 These fields are known as _KeyVal_ fields.
 
 ## Maxima's assignments `a:3` ##
 
-Computer algebra systems each use a different syntax to denote the assignment of a value to a variable.
-For example, Maple and Derive use `:=`. Mathematica uses `=` or `:=`, depending on when the assignment is to take place.
-Maxima uses the form `key:value`, which is unusual and not intuitive.
-Maxima reserves `:=` to denote function definition, e.g. `f(x):=x^2`.
-STACK uses Maxima's assignment rules.
+Maxima, and hence STACK, uses the form `key:value`, to assign a value to a variable, which unusual and not intuitive.  Maxima reserves `:=` to denote function definition, e.g. `f(x):=x^2`.
 
 ## Notes ##
 
@@ -61,6 +54,8 @@ This collection of special variables are called "context variables".
 STACK has a special constant `%_stack_preamble_end`.  Any variables _before_ this constant will be included within the context variables.  This enables you to define functions, e.g. to use with `texput`.  
 
 Note, that students are not permitted to use any variable name defined by the teacher in the question variables.  This includes both the context variables, and the regular remaining question variables.  It is not possible to define variables which a student can then use.  Students _can_ use function names defined in the preamble. e.g. you can put `vec(ex):=stackvector(ex);` into the preamble.
+
+For example, `assume(a>0)` will enable you to accept \(a\sqrt{5}=\sqrt{5a^2}\) using the `AlgEquiv` answer test.  Normally \(\sqrt{a^2}=|a|\neq a\).
 
 For example, `texput(blob, "\\diamond")` is simple.  You can also define a function and use this function in texput.
 

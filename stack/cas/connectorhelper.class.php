@@ -25,6 +25,7 @@ require_once(__DIR__ . '/installhelper.class.php');
 /**
  * The base class for connections to Maxima.
  *
+ * @package    qtype_stack
  * @copyright  2012 The University of Birmingham
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
@@ -54,10 +55,6 @@ abstract class stack_connection_helper {
         $debuglog = stack_utils::make_debug_log(self::$config->casdebugging);
 
         switch (self::$config->platform) {
-            case 'win':
-                require_once(__DIR__ . '/connector.windows.class.php');
-                $connection = new stack_cas_connection_windows(self::$config, $debuglog);
-                break;
             case 'linux':
             case 'linux-optimised':
                 require_once(__DIR__ . '/connector.linux.class.php');
@@ -122,6 +119,7 @@ abstract class stack_connection_helper {
     }
 
     /**
+     * Add description here.
      * @return string the configured platform type.
      */
     public static function get_platform() {
@@ -130,6 +128,7 @@ abstract class stack_connection_helper {
     }
 
     /**
+     * Add description here.
      * @return string the configured version number.
      */
     public static function get_maximaversion() {
@@ -199,6 +198,7 @@ abstract class stack_connection_helper {
     }
 
     /**
+     * Add description here.
      * @return string the version of the STACK Maxima libraries that should be in use.
      */
     public static function get_required_stackmaxima_version() {
@@ -212,8 +212,7 @@ abstract class stack_connection_helper {
      * @param stack_debug_log $debug log to write debug information to.
      */
     public static function warn_about_version_mismatch($debug) {
-        $warning = "WARNING: the version of the STACK-Maxima libraries used do not match the expected version. " .
-                "Please visit the STACK heathcheck page to resolve the problems.";
+        $warning = stack_string('healthchecksstackmaximawarning');
         $debug->log($warning);
         debugging($warning);
     }
@@ -262,7 +261,7 @@ abstract class stack_connection_helper {
 
         switch (self::$config->platform) {
             case 'linux-optimised':
-                $docsurl = new moodle_url('/question/type/stack/doc/doc.php/CAS/Optimising_Maxima.md');
+                $docsurl = new moodle_url('/question/type/stack/doc/doc.php/Installation/Optimising_Maxima.md');
                 $fix = stack_string('healthchecksstackmaximaversionfixoptimised', ['url' => $docsurl->out()]);
                 break;
 
@@ -297,6 +296,7 @@ abstract class stack_connection_helper {
         $casdebugging = self::$config->casdebugging;
         self::$config->casresultscache = 'none';
         self::$config->casdebugging = true;
+        self::$config->castimeout = max(100, self::$config->castimeout);
 
         $connection = self::make();
         $results = $connection->compute($command);
@@ -390,7 +390,7 @@ abstract class stack_connection_helper {
         return [$message, $debug, $success];
     }
 
-    /*
+    /**
      * This function is in this class, rather than installhelper.class.php, to
      * ensure the lowest level connection to the CAS, without caching.
      */
@@ -451,7 +451,7 @@ abstract class stack_connection_helper {
         $success = true;
 
         // Add the timeout command to the message.
-        $commandline = 'timeout --kill-after=10s 10s '.$rawcommand;
+        $commandline = 'timeout --kill-after=30s 30s '.$rawcommand;
         $message = stack_string('healthautomaxopt_ok', ['command' => $commandline]);
         if (!file_exists($imagename)) {
             $success = false;

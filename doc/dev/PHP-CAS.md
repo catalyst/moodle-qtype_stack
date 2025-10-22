@@ -6,7 +6,7 @@ This document describes the design of the PHP interface to the CAS.  This interf
 
 ## CAS text
 
-CAS text is literally "computer algebra active text".  This is documented [here](../Authoring/CASText.md).  Note, that when constructing CAS text it must be able to take a CAS session as an argument to the constructor.  In this way we can use lists of variables, such as [question variables](../Authoring/Variables.md) to provide values.
+CAS text is literally "computer algebra active text".  This is documented in [/Authoring/CASText](../Authoring/CASText.md).  Note, that when constructing CAS text it must be able to take a CAS session as an argument to the constructor.  In this way we can use lists of variables, such as [question variables](../Authoring/Variables.md) to provide values.
 
 E.g. we might have :
 
@@ -93,7 +93,7 @@ which gives a different internal structure
 
 which might best be thought of as `22/7+-(%pi)` where `-` is now a function of a single argument.
 
-In this example, the unsimplified `MQUOTIENT` and simplified `RAT SIMP` are not particularly problematic.  However, the difference between `-%pi` and `-1*%pi` is seriouly problematic.  Indeed, this kind of distinction is exactly what some
+In this example, the unsimplified `MQUOTIENT` and simplified `RAT SIMP` are not particularly problematic.  However, the difference between `-%pi` and `-1*%pi` is seriously problematic.  Indeed, this kind of distinction is exactly what some
 answer tests, e.g. `EqualComAss` and `CasEqual`, are designed to establish.  These tests will not work with a mix of simplified and unsimplified expressions, even if to the user they look completely identical!
 
 The solution to this problem is to "rinse" away any maxima internal simplification by using the Maxima `string` function to return the expression to the top level which a user would expect to type.  This process corresponds to what happend in older versions of Maxima in which expressions were routinely passed between Maxima and PHP, with the string representation being used.

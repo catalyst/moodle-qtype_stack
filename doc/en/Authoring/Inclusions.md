@@ -1,39 +1,24 @@
 # Inclusions
 
-This is an expert level topic, please avoid this feature unless you feel that you understand the implications and consequences of it. Note that using this feature goes against the self-contained material principle present in [the future proof guidelines](../STACK_question_admin/Future_proof.md).
+STACK provides a mechanism for sharing code between questions.  For example, you can include small libraries of Maxima functions, dedicated to specific topics, in the question variables.
 
-That being said, a common request on the wish-list has been to provide some means of sharing code between questions. The inclusion-feature is the first step towards such a feature, however, it is not perfect nor do we expect it to be the solution that will finally be selected. But we provide it now that the back-end has the tools to provide it, for those adventurous enough.
+There is a tension between (i) reusing libraries of functions between questions and (ii) the self-contained material principle present in [the future proof guidelines](../STACK_question_admin/Future_proof.md).  This is an advanced topic. 
 
 Technical note: Currently, inclusions within inclusions are not supported, due to loop detection and security validation reasons.
 
 ## Inclusions life-cycle
 
-For all current types of inclusions the inclusion happens at the time of compilation,
-which means that the source will be fetched when the question gets compiled and will
-stay in the cached compilation product. Compilation happens during the first use of
-the question after it has been saved or the cache has been purged.
+For all current types of inclusions the inclusion happens at the time of question compilation, which means that the source will be fetched when the question gets compiled and will stay in the cached compilation product.  Compilation happens during _the first use_ of the question after it has been saved or the cache has been purged.
 
-The logic will not track changes to the source material, if one wants to fetch it
-again one must re-compile the question, either by purging the caches or by editing
-the question.
+The inclusion logic will not track changes to the external source material.  If one wants to fetch it again one must re-compile the question, either by purging the caches or by editing the question.
 
-Note that in the current solution during export we export only the source address
-and the exported material will only work if the address is accessible at the end
-that imports it.
-
+During export we export only the _source address_.  The exported material will only work if the address is accessible at the end that imports it.
 
 ## Inclusions within text
 
-The simpler inclusion type is the CASText2 include-block, which will simply place
-CASText2-code from a given address at the blocks location. Note that one may need
-to be careful with the format of the context and included code, the include logic
-assumes that the code is of the same format as the context, so if your included
-content is in Markdown-format including it directly to HTML-context may cause
-trouble.
+The simpler inclusion type is the CASText2 include-block, which will simply place CASText2-code from a given address at the blocks location. Note that one may need to be careful with the format of the context and included code, the include logic assumes that the code is of the same format as the context, so if your included content is in Markdown-format including it directly to HTML-context may cause trouble.
 
-Typical use case would be to have a JSXGraph or GeoGebra plotting logic that expect that
-certain variables contain parameters for plotting and one would then simply
-make sure that one would populate those parameters before inclusion of the plotting
+Typical use case would be to have a JSXGraph or GeoGebra plotting logic that expect that certain variables contain parameters for plotting and one would then simply make sure that one would populate those parameters before inclusion of the plotting
 logic for example like this:
 
 ```
@@ -46,19 +31,14 @@ Then include the same plotting logic but change the parameters to plot something
 
 ```
 
-As the included content can be of a different format (Markdown etc.) than
-the context into which it gets included it is recommended that the included
-content defines its own format. For example, wrapping itself in one of
-the new format controlling blocks `[[moodleformat]]`, `[[htmlformat]]` or
-`[[markdownformat]]`, thus allowing whatever format content to be included
-within another formats content. Note, that at this time identification of
-math-mode is not quite ready to understand all of these context switches.
+As the included content can be of a different format (Markdown etc.) than the context into which it gets included it is recommended that the included content defines its own format. For example, wrapping itself in one of the new format controlling blocks `[[moodleformat]]`, `[[htmlformat]]` or `[[markdownformat]]`, thus allowing whatever format content to be included within another formats content. Note, that at this time identification of math-mode is not quite ready to understand all of these context switches.
 
 
 ## Inclusions within CAS-logic
 
 You can also include code into keyvals, i.e. question-variables or into feedback-variables.
-This type of an inclusion will again act just as if written directly by the question author at that place in the code. If one writes this type of an inclusion within an if-statement it will simply get written open within
+This type of an inclusion will act just as if written directly by the question author at that place in the code.
+If one writes this type of an inclusion within an if-statement it will simply get written open within
 an if-statement, the `if` will only decide if it executes, but it will still take that space and bandwidth.
 
 The included material must follow all the rules of normal STACK keyvals.
@@ -70,7 +50,7 @@ The included material must follow all the rules of normal STACK keyvals.
 
 Note that we do not do "tree-shaking" at this point to remove unnecessary code.  If you include a massive library of functions that you do not use the question will still have to load those functions into the CAS and that may take some time.  If you have libraries, used in many questions, please consider contributing these to the core of STACK.
 
-To include external CAS code call the `stack_include()`-function with a string  argument.  The argument must be a raw string, containing the URL of the code.  You cannot reference a variable containing such a string. For example,
+To include external CAS code call the `stack_include()` - function with a string argument.  The argument must be a raw string, containing the URL of the code.  You cannot reference a variable containing such a string. For example,
 
 ```
 a: rand(3)+2;
@@ -99,6 +79,7 @@ Notes.
 1. We will try to keep files in the contrib folder small, and stable.
 2. We intend to move commonly used contributed code into the core in due course.  At that point we will localise language strings for automatic translation.
 3. Please contact the developers about naming conventions.  For example, external validators should start the function name with `validator_`.
+4. If you wish to use the libraries locally, on your server, prepend the file name with `contribl://`, e.g. `stack_include("contribl://matchlib.mac");` will load the local file, not the file on github.  This is mostly for local development, before code is pushed to the master branch.  We advise against this for live questions.
 
 ### Sandbox testing
 

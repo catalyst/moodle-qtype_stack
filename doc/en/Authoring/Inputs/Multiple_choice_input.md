@@ -9,6 +9,11 @@ If you are new to STACK please note that in STACK MCQs are *not* the place to st
 
 Please read the section on [inputs](../../Authoring/Inputs/index.md) first.
 
+STACK provides a number of multiple choice input types including:
+* Checkbox (students select one or more options from a displayed list)
+* Radio (students select *one* option from a list)
+* Drop down list (a drop-down menu box is added to the question text, from which students select a single option)
+
 Multiple choice input types return a CAS object which is then assessed by the potential response tree.  For this reason, these inputs do not provide "feedback" fields for each possible answer, as does the Moodle multiple choice input type.
 
 * Checkbox inputs return a *list* of the CAS objects selected;
@@ -17,6 +22,8 @@ Multiple choice input types return a CAS object which is then assessed by the po
 The goal of these input types is to provide *modest* facilities for MCQ.  An early design decision was to restrict each of the possible answers to be a CAS expression.  In particular, we decided *NOT* to make each possible answer [CASText](../../Authoring/CASText.md).  Adopting CASText would have provided more flexibility but would have significantly increased the complexity of the internal code. If these features are extensively used we will consider a different input type.
 
 Example questions are in the stack library under `Features\MCQ_....`.
+
+It is possible to include [plots within MCQ](Multiple_choice_plots.md).
 
 ## Model answer ##
 
@@ -52,6 +59,11 @@ An example which includes the `display` option is
 
 Note in this example the `value` of the student's answer will be a letter which is literally a Maxima variable name.  In this situation you can't really randomize the letters used easily.  (Not impossible with some cunning code, but a lot of work....)
 
+When using checkbox or radio input types, the `display` value can include LaTeX code. (See below for including mathematics in a drop down input type.) Any `\` in the LaTeX code needs to be *escaped* to `\\`. For example a model answer might be
+
+     tacp:[[0, true, "\\( \\sin(x) \\)"], [1, false, "\\( \\cos(x) \\)"], [2, false, "\\( e^x \\)"]]
+
+
 If you choose to use an integer, and randomly shuffle the answers then the validation feedback would be confusing, since an integer (which might be shuffled) has no correspondence to the choices selected.  *This behaviour is a design decision and not a bug! It may change in the future if there is sufficient demand, but it requires a significant change in STACK's internals to have parallel "real answer" and "indicated answer". Such a change might have other unintended and confusing consequences.*
 
 Normally we don't permit duplicate values in the values of the teacher's answer.  If the input type receives duplicate values STACK will throw an error.  This probably arises from poor randomization.  However it may be needed.  If duplicate entries are permitted use the display option to create unique value keys with the same display. *This behaviour is a design decision may change in the future.*
@@ -66,7 +78,7 @@ If one of the responses is \(x=1 \text{ or } x=2\) then use `nounor` which is co
 
 Functions `diff` and `int` will evaluate, so you don't have displayed calculus operation.  If one of the responses is a _displayed_ derivative or integral then construct your answer with Maxima's inert forms `'diff` and `'int`.
 
-## Model answer: LaTeX display in dropdowns ##
+## Model answer: mathematics display in dropdowns ##
 
 HTML dropdowns cannot display LaTeX within the options.  This is a restriction of HTML/MathJax (not of STACK).  You can use HTML-entities within a string field.  For example
 
@@ -135,7 +147,7 @@ If one of the items in the teacher's answer list is is the special variable name
 ## Extra options ##
 
 These input types make use of the "Extra options" field of the input type to pass in options.  These options are not case sensitive.
-This must be a comma-separated list of values as follows, but currently the only option is to control the display of mathematical expressions.
+This must be a comma-separated list of values as follows.
 
 The way the items are displayed can be controlled by the following options.
 
@@ -145,6 +157,7 @@ The way the items are displayed can be controlled by the following options.
 * `LaTeXdisplaystyle` use LaTeX to display the options, using the inline maths environment and the displaystyle option `\(\displaystyle...\)`.
 * `casstring` does not use the LaTeX value, but just prints the casstring value in `<code>...</code>` tags.
 * `nonotanswered` removes the ``Not answered'' option from radio and dropdown.  This is _not recommended_ as it means a student has no opportunity to "uncheck" a radio button once selected.  They may wish not to answer, rather than save an incorrect answer.
+* `allowempty` is supported by MCQ inputs.
 
 
 ## Randomly shuffling the options ##
@@ -333,41 +346,6 @@ You may write normal CASText syntax inside that string and it should behave exac
 The most obvious use case for inline CASText is to provide localisation inside MCQ labels in situations where the mlang2-filter is not an option:
 
     [true, true, castext("[[lang code='en']]Yes[[/lang]][[lang code='fi']]Kyllä[[/lang]]")]
-
-## Dealing with plots in MCQ ##
-
-It is possible to use plots as the options in a STACK MCQ.
-
-Recall again the MCQ are limited to legitimate CAS objects.
-The `plot` command returns a string which is the URL of the dynamically generated image on the server.
-The "value" of this can't be assessed by the potential response trees.
-For this reason you must use the display option with plots and must only put the plot command in the display option. (Otherwise STACK will throw an error: this behaviour could be improved).
-For example, to create a correct answer consisting of three plots consider the following in the question variables.
-
-    p1:plot(x,[x,-2,2],[y,-3,3])
-    p2:plot(x^2,[x,-2,2],[y,-3,3])
-    p3:plot(x^3,[x,-2,2],[y,-3,3])
-    ta:[[1,true,p1],[2,false,p2],[3,false,p3]]
-
-The actual CAS value of the answer returned will be the respective integer selected (radio or dropdown) or list of integers (checkbox).
-The PRT can then be used to check the value of the integer (or list) as normal.
-
-For this reason you will probably want to switch off the validation feedback ``your last answer was...".
-
-Using a PRT is slight overkill, but it maintains the consistent internal design.
-
-## Dealing with external images in MCQ ##
-
-It is also possible to embed the URL of an externally hosted image as the "display" field of an MCQ.
-The string is not checked, and is also passed through the CAS.
-This feature is fragile to being rejected as an invalid CAS object, and so is not recommended.  (This could also be improved...)
-
-For example, the question variables could be something like
-
-    i1:"<img src='http://www.maths.ed.ac.uk/~csangwin/Pics/z1.jpg' />"
-    i2:"<img src='http://www.maths.ed.ac.uk/~csangwin/Pics/z2.jpg' />"
-    i3:"<img src='http://www.maths.ed.ac.uk/~csangwin/Pics/z3.jpg' />"
-    ta:[[1,true,i1],[2,false,i2],[3,false,i3]]
 
 ## Partial Marking for MCQs ##
 

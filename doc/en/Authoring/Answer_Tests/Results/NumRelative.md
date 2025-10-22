@@ -404,6 +404,28 @@ This page exposes the results of running answer tests on STACK test cases.  This
   <td class="cell c5">1</td>
   <td class="cell c6"></td>
 </tr>
+<tr class="pass">
+  <td class="cell c0">NumRelative</td>
+  <td class="cell c1"><span style="color:green;"><i class="fa fa-check"></i></span></td>
+  <td class="cell c2"><pre>{-1,2,3}</pre></td>
+  <td class="cell c3"><pre>{-1,2,3}</pre></td>
+  <td class="cell c4"><pre>0.01</pre></td>
+  <td class="cell c5">1</td>
+  <td class="cell c6"></td>
+</tr>
+<tr class="pass">
+  <td class="cell c0">NumRelative</td>
+  <td class="cell c1"><span style="color:green;"><i class="fa fa-check"></i></span></td>
+  <td class="cell c2"><pre>{-1.1,2,3}</pre></td>
+  <td class="cell c3"><pre>{-1,2,3}</pre></td>
+  <td class="cell c4"><pre>0.01</pre></td>
+  <td class="cell c5">0</td>
+  <td class="cell c6">ATNumerical_wrongentries: TA/SA=[-1.0], SA/TA=[-1.1].</td>
+</tr>
+<tr class="pass">
+  <td class="cell c0"><td colspan="2"></td></td>
+  <td class="cell c1"><td colspan="4">The entries underlined in red below are those that are incorrect. <span class="filter_mathjaxloader_equation"><span class="nolink">\[\left \{{\color{red}{\underline{-1.1}}} \right \}\]</span></span></td></td>
+</tr>
 <tr class="notes">
   <td class="cell c0"><td colspan="6">Complex numbers</td></td>
 </tr>
@@ -419,4 +441,13 @@ This page exposes the results of running answer tests on STACK test cases.  This
 <tr class="pass">
   <td class="cell c0"><td colspan="2"></td></td>
   <td class="cell c1"><td colspan="4">Your answer should be a floating point number, but is not.</td></td>
+</tr>
+<tr class="pass">
+  <td class="cell c0">NumRelative</td>
+  <td class="cell c1"><span style="color:green;"><i class="fa fa-check"></i></span></td>
+  <td class="cell c2"><pre>displaydp(0.95,2)</pre></td>
+  <td class="cell c3"><pre>1</pre></td>
+  <td class="cell c4"></td>
+  <td class="cell c5">1</td>
+  <td class="cell c6"></td>
 </tr></tbody></table></div>

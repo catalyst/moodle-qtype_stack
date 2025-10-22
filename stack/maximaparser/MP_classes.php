@@ -15,6 +15,13 @@
 // along with Stateful.  If not, see <http://www.gnu.org/licenses/>.
 // Stateful by Matti Harjula 2017.
 
+/**
+ * Add description here!
+ * @package    qtype_stack
+ * @copyright  2017 Matti Harjula.
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later.
+ */
+
 /*
  * Class defintions for the PHP version of the PEGJS parser.
  * toString functions are mainly to document what the objects parts mean.
@@ -283,10 +290,10 @@ class MP_Node {
         return null;
     }
     */
-   
-   /** 
+
+   /**
     * Generates an array listing the types of nodes present in this subtree.
-    * Including this node. Keyed with class-name and includes some specific 
+    * Including this node. Keyed with class-name and includes some specific
     * predefined special cases like `ops` and `has control flow`
     */
    public function type_count(): array {
@@ -360,9 +367,9 @@ class MP_Node {
         return $r;
    }
 
-   /** 
+   /**
     * Checks if this node has a call for a given function in its ancestry.
-    * Returns false if not otherwise tells the index of the arguments of 
+    * Returns false if not otherwise tells the index of the arguments of
     * that function call that includes this.
     * @param  string $funname Name of the function we are intersted of
     * @return false or index.
@@ -1243,7 +1250,7 @@ class MP_Group extends MP_Node {
             $this->items[0]->name instanceof MP_Atom &&
             $this->items[0]->name->value === stack_ast_filter_996_call_modification::IDCHECK;
     }
-    
+
     public function toString($params = null): string {
         $indent = '';
 
@@ -2218,22 +2225,28 @@ function opLBind($op) {
         case '!!':
             return 160;
         case '^':
+        case 'nounpow':
         case '**':
             return 140;
         case '.':
             return 130;
         case '*':
+        case 'nounmul':
         case '@@IS@@':
         case '@@Is@@':
         case '/':
+        case 'noundiv':
             return 120;
         case '+':
+        case 'nounadd':
         case '-':
         case '+-':
         case '#pm#':
             return 100;
         case '=':
+        case 'nouneq':
         case '*':
+        case 'nounmul':
         case '#':
         case '>':
         case '>=':
@@ -2259,8 +2272,6 @@ function opLBind($op) {
     return 0;
 }
 
-
-
 function opRBind($op) {
     switch ($op) {
         case ':':
@@ -2283,6 +2294,7 @@ function opRBind($op) {
         case '+':
             return 100;
         case '-':
+        case 'nounsub ':
             return 134;
         case '=':
         case '#':

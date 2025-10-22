@@ -15,6 +15,8 @@
 // along with Stack.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
+ * Add description here!
+ * @package    qtype_stack
  * @copyright  2016 University of Edinburgh
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
@@ -79,7 +81,7 @@ $samplearguments = $data->rawdata;
 $options = new stack_options();
 $options->set_site_defaults();
 $options->set_option('simplify', false);
-$options->set_option('multiplicationsign', 'none');
+$options->set_option('multiplicationsign', 'space');
 
 $casstrings = [];
 $i = 0;
@@ -99,9 +101,6 @@ if (array_key_exists('fail', $_GET)) {
     $onlyarg = false;
 };
 $verbose = $debug;
-/* Just consider the last in the array. */
-$sa = array_reverse($samplearguments);
-$samplearguments2 = [$sa[0]];
 
 $timestart = microtime(true);
 foreach ($samplearguments as $argument) {
@@ -155,9 +154,12 @@ foreach ($samplearguments as $argument) {
             }
             $cs3 = stack_ast_container::make_from_teacher_source($val, '', new stack_cas_security());
 
+            /* This is the value of the answer test. */
             $cs4 = stack_ast_container::make_from_teacher_source("R1:first(S1)", '', new stack_cas_security());
+            /* This is the note from the answer test. */
+            $cs5 = stack_ast_container::make_from_teacher_source("R3:third(S1)", '', new stack_cas_security());
 
-            $session = new stack_cas_session2([$ap, $ar, $ac, $cs1, $cs2, $cs3, $cs4], $options);
+            $session = new stack_cas_session2([$ap, $ar, $ac, $cs1, $cs2, $cs3, $cs4, $cs5], $options);
             $expected = $argument['outcome'];
             if (true === $argument['outcome']) {
                 $expected = 'true';
@@ -192,6 +194,9 @@ foreach ($samplearguments as $argument) {
             }
             if ($verbose) {
                 $displaytext .= $overall;
+                if ($cs5->is_correctly_evaluated()) {
+                    $displaytext .= "\n<br>" . $cs5->get_value();
+                }
                 $displaytext .= "\n<br>Time taken: ".$rtook;
             }
             $errs = '';
