@@ -45,14 +45,92 @@ require_once(__DIR__ . '/fixtures/answertestfixtures.class.php');
 final class answertest_general_fixtures_test extends qtype_stack_testcase {
 
     /**
-     * Add description
+     * Run independent answer-test fixtures with up to four Maxima requests at once.
+     *
      * @dataProvider answertest_fixtures
+     * @param array $tests Answer-test fixtures.
      */
-    public function test_answertest($name, $test): void {
+    public function test_answertest(array $tests): void {
+        if (!class_exists(\Fiber::class) || \stack_connection_helper::get_platform() !== 'server') {
+            foreach ($tests as [$name, $test]) {
+                $this->check_answertest($name, $test);
+            }
+
+            return;
+        }
+
+        require_once(__DIR__ . '/../stack/cas/connector.server.class.php');
+        $multi = curl_multi_init();
+        curl_multi_setopt($multi, CURLMOPT_MAX_TOTAL_CONNECTIONS, 4);
+
+        // Disable multiplexing so the connection limit also limits concurrent calculations.
+        curl_multi_setopt($multi, CURLMOPT_PIPELINING, CURLPIPE_NOTHING);
+        $requests = [];
+        $previous = \stack_cas_connection_server::$testcurl;
+        \stack_cas_connection_server::$testcurl = static function ($request) use ($multi, &$requests) {
+            $status = curl_multi_add_handle($multi, $request);
+
+            if ($status !== CURLM_OK) {
+                throw new \RuntimeException(curl_multi_strerror($status));
+            }
+
+            $requests[spl_object_id($request)] = [\Fiber::getCurrent(), $request];
+
+            return \Fiber::suspend();
+        };
+
+        try {
+            foreach ($tests as [$name, $test]) {
+                (new \Fiber(fn() => $this->check_answertest($name, $test)))->start();
+            }
+
+            while ($requests) {
+                $status = curl_multi_exec($multi, $running);
+
+                if ($status !== CURLM_OK) {
+                    throw new \RuntimeException(curl_multi_strerror($status));
+                }
+
+                while ($info = curl_multi_info_read($multi)) {
+                    $request = $info['handle'];
+                    [$fiber] = $requests[spl_object_id($request)];
+                    unset($requests[spl_object_id($request)]);
+                    $response = curl_multi_getcontent($request);
+                    curl_multi_remove_handle($multi, $request);
+
+                    if ($info['result'] !== CURLE_OK) {
+                        throw new \RuntimeException(curl_error($request));
+                    }
+
+                    $fiber->resume($response);
+                }
+
+                if ($requests && curl_multi_select($multi, 0.1) === -1) {
+                    usleep(1000);
+                }
+            }
+        } finally {
+            \stack_cas_connection_server::$testcurl = $previous;
+
+            foreach ($requests as [$fiber, $request]) {
+                curl_multi_remove_handle($multi, $request);
+            }
+
+            curl_multi_close($multi);
+        }
+    }
+
+    /**
+     * Check one fixture using the normal answer-test implementation.
+     *
+     * @param string $name Fixture description.
+     * @param \stdClass $test Answer-test fixture.
+     */
+    private function check_answertest(string $name, \stdClass $test): void {
         list($passed, $error, $rawmark, $feedback, $ansnote, $anomalynote) = stack_answertest_test_data::run_test($test);
 
-        $this->assertEquals($test->ansnote, $ansnote);
-        $this->assertTrue($passed, $anomalynote);
+        $this->assertEquals($test->ansnote, $ansnote, $name);
+        $this->assertTrue($passed, $name . ': ' . $anomalynote);
     }
 
     // phpcs:ignore moodle.Commenting.MissingDocblock.MissingTestcaseMethodDescription
@@ -68,6 +146,7 @@ final class answertest_general_fixtures_test extends qtype_stack_testcase {
             }
             $testdata[] = [$testname, $test];
         }
-        return $testdata;
+        // Share Moodle setup across small groups of independent answer-test fixtures.
+        return array_map(static fn($tests) => [$tests], array_chunk($testdata, 25));
     }
 }
