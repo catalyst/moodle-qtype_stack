@@ -26,7 +26,7 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class stack_cas_connection_server extends stack_cas_connection_base {
-    /** @var callable|null PHPUnit request handler for concurrent answer-test fixtures. */
+    /** @var callable|null PHPUnit request handler for concurrent test fixtures. */
     public static $testcurl = null;
 
     // phpcs:ignore moodle.Commenting.MissingDocblock.Function

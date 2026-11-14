@@ -59,6 +59,82 @@ abstract class qtype_stack_testcase extends advanced_testcase {
     }
 
     /**
+     * Run independent test cases with up to four Maxima requests at once.
+     *
+     * @param array $tests Cases that can safely share Moodle setup.
+     * @param callable $check Callback that checks one case.
+     */
+    protected function run_concurrently(array $tests, callable $check): void {
+        if (!class_exists(Fiber::class) || stack_connection_helper::get_platform() !== 'server') {
+            foreach ($tests as $test) {
+                $check($test);
+            }
+
+            return;
+        }
+
+        require_once(__DIR__ . '/../../stack/cas/connector.server.class.php');
+        $multi = curl_multi_init();
+        curl_multi_setopt($multi, CURLMOPT_MAX_TOTAL_CONNECTIONS, 4);
+
+        // Disable multiplexing so the connection limit also limits concurrent calculations.
+        curl_multi_setopt($multi, CURLMOPT_PIPELINING, CURLPIPE_NOTHING);
+        $requests = [];
+        $previous = stack_cas_connection_server::$testcurl;
+        stack_cas_connection_server::$testcurl = static function ($request) use ($multi, &$requests) {
+            $status = curl_multi_add_handle($multi, $request);
+
+            if ($status !== CURLM_OK) {
+                throw new RuntimeException(curl_multi_strerror($status));
+            }
+
+            $requests[spl_object_id($request)] = [Fiber::getCurrent(), $request];
+
+            return Fiber::suspend();
+        };
+
+        try {
+            foreach ($tests as $test) {
+                (new Fiber(fn() => $check($test)))->start();
+            }
+
+            while ($requests) {
+                $status = curl_multi_exec($multi, $running);
+
+                if ($status !== CURLM_OK) {
+                    throw new RuntimeException(curl_multi_strerror($status));
+                }
+
+                while ($info = curl_multi_info_read($multi)) {
+                    $request = $info['handle'];
+                    [$fiber] = $requests[spl_object_id($request)];
+                    unset($requests[spl_object_id($request)]);
+                    $response = curl_multi_getcontent($request);
+                    curl_multi_remove_handle($multi, $request);
+
+                    if ($info['result'] !== CURLE_OK) {
+                        throw new RuntimeException(curl_error($request));
+                    }
+
+                    $fiber->resume($response);
+                }
+
+                if ($requests && curl_multi_select($multi, 0.1) === -1) {
+                    usleep(1000);
+                }
+            }
+        } finally {
+            stack_cas_connection_server::$testcurl = $previous;
+
+            foreach ($requests as [$fiber, $request]) {
+                curl_multi_remove_handle($multi, $request);
+            }
+
+            curl_multi_close($multi);
+        }
+    }
+
+    /**
      * Helper that sets up the maxima configuration. This allows maxima to be used
      * from test classes that cannot subclass this one, for whatever reason.
      *

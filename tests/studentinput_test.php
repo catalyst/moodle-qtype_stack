@@ -40,70 +40,33 @@ require_once(__DIR__ . '/fixtures/inputfixtures.class.php');
 final class studentinput_test extends qtype_stack_testcase {
 
     /**
-     * Add description
-     * @codingStandardsIgnoreStart
-     * Provider in another class/file throws false code check error.
-     * @dataProvider stack_inputvalidation_test_data::get_raw_test_data
-     * @codingStandardsIgnoreEnd
+     * Check independent student-input fixtures in small concurrent groups.
+     *
+     * @dataProvider studentinput_fixtures
+     * @param array $tests Student-input fixtures.
      */
-    public function test_studentinput(): void {
+    public function test_studentinput(array $tests): void {
+        $this->run_concurrently($tests, function ($test) {
+            $result = stack_inputvalidation_test_data::run_test($test);
 
-        $test = stack_inputvalidation_test_data::test_from_raw(func_get_args(), 'typeless');
-        $result = stack_inputvalidation_test_data::run_test($test);
-
-        $this->assert_equals_ignore_spaces_and_e($result->display, $result->casdisplay);
-        $this->assertEquals($result->ansnotes, $result->casnotes);
-        $this->assertTrue($result->passed);
+            $this->assert_equals_ignore_spaces_and_e($result->display, $result->casdisplay);
+            $this->assertEquals($result->ansnotes, $result->casnotes, $test->rawstring);
+            $this->assertTrue($result->passed, $test->rawstring);
+        });
     }
 
     /**
-     * Add description
-     * @codingStandardsIgnoreStart
-     * Provider in another class/file throws false code check error.
-     * @dataProvider stack_inputvalidation_test_data::get_raw_test_data_units
-     * @codingStandardsIgnoreEnd
+     * Group the typeless, units and both decimal-separator fixtures.
+     *
+     * @return array Fixture groups.
      */
-    public function test_studentinput_units(): void {
-
-        $test = stack_inputvalidation_test_data::test_from_raw(func_get_args(), 'units');
-        $result = stack_inputvalidation_test_data::run_test($test);
-
-        $this->assert_equals_ignore_spaces_and_e($result->display, $result->casdisplay);
-        $this->assertEquals($result->ansnotes, $result->casnotes);
-        $this->assertTrue($result->passed);
-    }
-
-    /**
-     * Add description
-     * @codingStandardsIgnoreStart
-     * Provider in another class/file throws false code check error.
-     * @dataProvider stack_inputvalidation_test_data::get_raw_test_data_decimals
-     * @codingStandardsIgnoreEnd
-     */
-    public function test_studentinput_decimals_british(): void {
-
-        $test = stack_inputvalidation_test_data::test_decimals_from_raw(func_get_args(), 1);
-        $result = stack_inputvalidation_test_data::run_test($test);
-
-        $this->assert_equals_ignore_spaces_and_e($result->display, $result->casdisplay);
-        $this->assertEquals($result->ansnotes, $result->casnotes);
-        $this->assertTrue($result->passed);
-    }
-
-    /**
-     * Add description
-     * @codingStandardsIgnoreStart
-     * Provider in another class/file throws false code check error.
-     * @dataProvider stack_inputvalidation_test_data::get_raw_test_data_decimals
-     * @codingStandardsIgnoreEnd
-     */
-    public function test_studentinput_decimals_continental(): void {
-
-        $test = stack_inputvalidation_test_data::test_decimals_from_raw(func_get_args(), 2);
-        $result = stack_inputvalidation_test_data::run_test($test);
-
-        $this->assert_equals_ignore_spaces_and_e($result->display, $result->casdisplay);
-        $this->assertEquals($result->ansnotes, $result->casnotes);
-        $this->assertTrue($result->passed);
+    public static function studentinput_fixtures(): array {
+        $tests = stack_inputvalidation_test_data::get_all();
+        foreach ([1, 2] as $decimals) {
+            foreach (stack_inputvalidation_test_data::get_raw_test_data_decimals() as $data) {
+                $tests[] = stack_inputvalidation_test_data::test_decimals_from_raw($data, $decimals);
+            }
+        }
+        return array_map(static fn($tests) => [$tests], array_chunk($tests, 25));
     }
 }

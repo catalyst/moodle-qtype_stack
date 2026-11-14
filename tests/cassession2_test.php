@@ -2722,7 +2722,18 @@ final class cassession2_test extends qtype_stack_testcase {
         $session->add_statement($s1);
         $this->assertTrue($session->get_valid());
 
-        $session->instantiate();
+        // The connection helper caches its settings across tests, so restore the timeout afterwards.
+        \stack_connection_helper::get_platform();
+        $config = (new \ReflectionProperty(\stack_connection_helper::class, 'config'))->getValue();
+        $timeout = $config->castimeout;
+        if ($config->platform === 'server') {
+            $config->castimeout = 1;
+        }
+        try {
+            $session->instantiate();
+        } finally {
+            $config->castimeout = $timeout;
+        }
         $this->assertFalse($session->is_instantiated());
         $this->assertEquals('CAS failed to return any data due to timeout.', $s1->get_errors());
     }
